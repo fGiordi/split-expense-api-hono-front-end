@@ -32,7 +32,7 @@ export default function RegisterPage() {
       router.push("/dashboard"); // Redirect to dashboard on success
     } catch (err) {
       console.error("Register error:", err);
-      setError((err as any).response?.data?.message || "Registration failed");
+      setError("Registration failed");
     }
   };
 

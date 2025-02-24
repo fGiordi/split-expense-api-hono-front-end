@@ -32,9 +32,7 @@ export default function LoginPage() {
       router.push("/dashboard");
     } catch (err) {
       console.error("Login error:", err);
-      setError(
-        (err as any).response?.data?.message || "Invalid email or password"
-      );
+      setError("Invalid email or password");
     }
   };
 
