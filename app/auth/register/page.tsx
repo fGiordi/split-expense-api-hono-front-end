@@ -30,8 +30,9 @@ export default function RegisterPage() {
         document.cookie = `token=${response.data.token}; path=/`; // Set token cookie
       }
       router.push("/dashboard"); // Redirect to dashboard on success
-    } catch (err: any) {
+    } catch (err) {
       console.error("Register error:", err);
+      // @ts-ignore
       setError(err.response?.data?.message || "Registration failed");
     }
   };

@@ -30,8 +30,9 @@ export default function LoginPage() {
         localStorage.setItem("token", response.data.token);
       }
       router.push("/dashboard");
-    } catch (err: any) {
+    } catch (err) {
       console.error("Login error:", err);
+      // @ts-ignore
       setError(err.response?.data?.message || "Invalid email or password");
     }
   };
