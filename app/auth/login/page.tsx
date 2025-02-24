@@ -32,8 +32,9 @@ export default function LoginPage() {
       router.push("/dashboard");
     } catch (err) {
       console.error("Login error:", err);
-      // @ts-ignore
-      setError(err.response?.data?.message || "Invalid email or password");
+      setError(
+        (err as any).response?.data?.message || "Invalid email or password"
+      );
     }
   };
 
