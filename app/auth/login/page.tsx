@@ -15,17 +15,19 @@ export default function LoginPage() {
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault(); // Prevent default form submission
-    setError(""); // Clear previous errors
+    e.preventDefault();
+    // Prevent default form submission
+    setError("");
+    // Clear previous errors
 
     console.log("Form submitted with:", { email, password }); // Debug log
     try {
       const response = await axios.post(
-        `${process.env.BACKEND}users/login`,
+        `${process.env.NEXT_PUBLIC_BACKEND}users/login`,
         { email, password },
         { headers: { "Content-Type": "application/json" } }
       );
-      console.log("Login response:", response.data); // Debug log
+      console.log("Login response:", response.data.token); // Debug log
       if (response.data.token) {
         localStorage.setItem("token", response.data.token);
       }
