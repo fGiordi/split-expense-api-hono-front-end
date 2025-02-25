@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import axios from "axios";
 import { useRouter } from "next/navigation";
+import { toast } from "react-toastify";
 
 export default function RegisterPage() {
   const [username, setUsername] = useState("");
@@ -21,17 +22,18 @@ export default function RegisterPage() {
     console.log("Form submitted with:", { username, email, password });
     try {
       const response = await axios.post(
-        `${process.env.BACKEND}/users`,
+        `${process.env.NEXT_PUBLIC_BACKEND}/users`,
         { username, email, password },
         { headers: { "Content-Type": "application/json" } }
       );
-      console.log("Register response:", response.data);
       if (response.data.token) {
         document.cookie = `token=${response.data.token}; path=/`; // Set token cookie
       }
       router.push("/dashboard"); // Redirect to dashboard on success
+      toast.success("Registered successfully");
     } catch (err) {
       console.error("Register error:", err);
+      toast.error("Registration failed");
       setError("Registration failed");
     }
   };

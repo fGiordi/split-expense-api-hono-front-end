@@ -7,12 +7,15 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import axios from "axios";
 import { useRouter } from "next/navigation";
+import { toast } from "react-toastify";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const router = useRouter();
+
+  console.log("process.env.BACKEND", process.env.NEXT_PUBLIC_BACKEND);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -29,11 +32,13 @@ export default function LoginPage() {
       );
       console.log("Login response:", response.data.token); // Debug log
       if (response.data.token) {
-        localStorage.setItem("token", response.data.token);
+        document.cookie = `token=${response.data.token}; path=/; max-age=604800`; // Expires in couple hours ??
+        router.push("/dashboard");
+        toast.success("Logged in successfully");
       }
-      router.push("/dashboard");
     } catch (err) {
       console.error("Login error:", err);
+      toast.error("Invalid email or password");
       setError("Invalid email or password");
     }
   };
