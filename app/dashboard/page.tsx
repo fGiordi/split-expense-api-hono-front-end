@@ -18,11 +18,16 @@ import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
 import { motion } from "framer-motion";
 
-// Simple spinner component (customize with Aceternity if desired)
+// Simple spinner component
 const Spinner = () => (
   <div className="flex justify-center items-center py-4">
     <div className="w-8 h-8 border-4 border-green-500 border-t-transparent rounded-full animate-spin"></div>
   </div>
+);
+
+// Small spinner for delete button
+const SmallSpinner = () => (
+  <div className="w-4 h-4 border-2 border-red-500 border-t-transparent rounded-full animate-spin"></div>
 );
 
 type Expense = {
@@ -48,8 +53,11 @@ export default function Dashboard() {
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("");
   const [error, setError] = useState("");
-  const [isLoadingExpenses, setIsLoadingExpenses] = useState(true); // Loading state for fetch
-  const [isAddingExpense, setIsAddingExpense] = useState(false); // Loading state for add
+  const [isLoadingExpenses, setIsLoadingExpenses] = useState(true);
+  const [isAddingExpense, setIsAddingExpense] = useState(false);
+  const [deletingExpenseId, setDeletingExpenseId] = useState<string | null>(
+    null
+  ); // Track deleting expense
   const router = useRouter();
 
   useEffect(() => {
@@ -109,7 +117,7 @@ export default function Dashboard() {
           },
         }
       );
-      setExpenses([...expenses, response.data]);
+      setExpenses([...expenses, response.data.expense]);
       toast.success("Expense added successfully");
       setAmount("");
       setDescription("");
@@ -123,13 +131,39 @@ export default function Dashboard() {
     }
   };
 
+  const handleDeleteExpense = async (id: string) => {
+    const token = getCookie("token");
+    if (!token) {
+      setError("No authentication token found");
+      router.push("/auth/login");
+      return;
+    }
+
+    try {
+      setDeletingExpenseId(id); // Start loading for this expense
+      await axios.delete(`${process.env.NEXT_PUBLIC_BACKEND}expenses/${id}`, {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      setExpenses(expenses.filter((expense) => expense.id !== id));
+      toast.success("Expense deleted successfully");
+    } catch (err: any) {
+      console.error("Delete expense error:", err);
+      toast.error("Failed to delete expense");
+    } finally {
+      setDeletingExpenseId(null); // Stop loading
+    }
+  };
+
   const handleLogout = () => {
     document.cookie = "token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
     router.push("/auth/login");
   };
 
   const totalExpenses = expenses
-    .reduce((sum, expense) => sum + expense.amount, 0)
+    .reduce((sum, expense) => sum + Number(expense.amount), 0)
     .toFixed(2);
 
   return (
@@ -292,14 +326,18 @@ export default function Dashboard() {
                       <TableHead className="text-green-100/80 text-right">
                         Amount
                       </TableHead>
+                      <TableHead className="text-green-100/80 text-right">
+                        Actions
+                      </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {expenses.map((expense, index) => (
                       <motion.tr
-                        key={expense.id}
+                        key={index}
                         initial={{ opacity: 0, x: -20 }}
                         animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: 20 }} // Animation for removal
                         transition={{ duration: 0.3, delay: index * 0.1 }}
                         className="border-b border-green-500/10 hover:bg-white/5 transition-colors"
                       >
@@ -314,6 +352,19 @@ export default function Dashboard() {
                         </TableCell>
                         <TableCell className="text-green-100 text-right">
                           R{expense.amount?.toFixed(2)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            onClick={() => handleDeleteExpense(expense.id)}
+                            disabled={deletingExpenseId === expense.id}
+                            className="bg-red-500/80 hover:bg-red-600 text-white py-1 px-2 rounded-md text-sm disabled:opacity-50"
+                          >
+                            {deletingExpenseId === expense.id ? (
+                              <SmallSpinner />
+                            ) : (
+                              "Delete"
+                            )}
+                          </Button>
                         </TableCell>
                       </motion.tr>
                     ))}
