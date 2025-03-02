@@ -42,7 +42,7 @@ export default function RegisterPage() {
         toast.success("Registered successfully");
         router.push("/dashboard");
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error("Register error:", err);
       toast.error("Registration failed");
       setError("Registration failed");

@@ -81,10 +81,11 @@ export default function Dashboard() {
           }
         );
         setExpenses(response.data);
-      } catch (err: any) {
+      } catch (err) {
         console.error("Fetch expenses error:", err);
         setError("Failed to load expenses");
         toast.error("Failed to load expenses");
+        // @ts-ignore
         if (err.response?.status === 401) {
           router.push("/auth/login");
         }
@@ -149,7 +150,7 @@ export default function Dashboard() {
       });
       setExpenses(expenses.filter((expense) => expense.id !== id));
       toast.success("Expense deleted successfully");
-    } catch (err: any) {
+    } catch (err) {
       console.error("Delete expense error:", err);
       toast.error("Failed to delete expense");
     } finally {
