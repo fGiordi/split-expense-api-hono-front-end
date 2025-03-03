@@ -85,8 +85,7 @@ export default function Dashboard() {
         console.error("Fetch expenses error:", err);
         setError("Failed to load expenses");
         toast.error("Failed to load expenses");
-        // @ts-ignore
-        if (err.response?.status === 401) {
+        if (axios.isAxiosError(err) && err.response?.status === 401) {
           router.push("/auth/login");
         }
       } finally {
@@ -123,10 +122,15 @@ export default function Dashboard() {
       setAmount("");
       setDescription("");
       setCategory("");
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Add expense error:", err);
-      setError(err.response?.data?.message || "Failed to add expense");
-      toast.error(err.response?.data?.message || "Failed to add expense");
+      if (axios.isAxiosError(err) && err.response) {
+        setError(err.response.data?.message || "Failed to add expense");
+        toast.error(err.response.data?.message || "Failed to add expense");
+      } else {
+        setError("Failed to add expense");
+        toast.error("Failed to add expense");
+      }
     } finally {
       setIsAddingExpense(false);
     }
