@@ -33,7 +33,7 @@ export default function RegisterPage() {
     console.log("Form submitted with:", { username, email, password });
     try {
       const response = await axios.post(
-        `${process.env.NEXT_PUBLIC_BACKEND}/users`,
+        `${process.env.NEXT_PUBLIC_BACKEND}users`,
         { username, email, password },
         { headers: { "Content-Type": "application/json" } }
       );
