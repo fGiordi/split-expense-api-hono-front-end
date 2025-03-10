@@ -17,6 +17,7 @@ import axios from "axios";
 import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
 import { motion } from "framer-motion";
+import { categoryOptions } from "@/types";
 
 // Simple spinner component
 const Spinner = () => (
@@ -25,7 +26,7 @@ const Spinner = () => (
   </div>
 );
 
-// Small spinner for delete button
+// Small spinner for delete/edit buttons
 const SmallSpinner = () => (
   <div className="w-4 h-4 border-2 border-red-500 border-t-transparent rounded-full animate-spin"></div>
 );
@@ -39,6 +40,8 @@ type Expense = {
   date: string;
 };
 
+// Extract main category names
+
 // Utility function to get cookie by name
 const getCookie = (name: string) => {
   const value = `; ${document.cookie}`;
@@ -51,13 +54,15 @@ export default function Dashboard() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
-  const [category, setCategory] = useState("");
+  const [mainCategory, setMainCategory] = useState("");
+  const [subCategory, setSubCategory] = useState("");
   const [error, setError] = useState("");
   const [isLoadingExpenses, setIsLoadingExpenses] = useState(true);
   const [isAddingExpense, setIsAddingExpense] = useState(false);
   const [deletingExpenseId, setDeletingExpenseId] = useState<string | null>(
     null
-  ); // Track deleting expense
+  );
+  const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -95,7 +100,9 @@ export default function Dashboard() {
     fetchExpenses();
   }, [router]);
 
-  const handleAddExpense = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleAddOrEditExpense = async (
+    e: React.FormEvent<HTMLFormElement>
+  ) => {
     e.preventDefault();
     setError("");
     const token = getCookie("token");
@@ -105,31 +112,64 @@ export default function Dashboard() {
       return;
     }
 
+    const combinedCategory = subCategory
+      ? `${mainCategory} - ${subCategory}`
+      : mainCategory;
+
     try {
       setIsAddingExpense(true);
-      const response = await axios.post(
-        `${process.env.NEXT_PUBLIC_BACKEND}expenses`,
-        { amount: parseFloat(amount), description, category },
-        {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
+      if (editingExpenseId) {
+        const response = await axios.put(
+          `${process.env.NEXT_PUBLIC_BACKEND}expenses/${editingExpenseId}`,
+          {
+            amount: parseFloat(amount),
+            description,
+            category: combinedCategory,
           },
-        }
-      );
-      setExpenses([...expenses, response.data.expense]);
-      toast.success("Expense added successfully");
+          {
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+        setExpenses(
+          expenses.map((exp) =>
+            exp.id === editingExpenseId ? response.data.expense : exp
+          )
+        );
+        toast.success("Expense updated successfully");
+        setEditingExpenseId(null);
+      } else {
+        const response = await axios.post(
+          `${process.env.NEXT_PUBLIC_BACKEND}expenses`,
+          {
+            amount: parseFloat(amount),
+            description,
+            category: combinedCategory,
+          },
+          {
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+        setExpenses([...expenses, response.data.expense]);
+        toast.success("Expense added successfully");
+      }
       setAmount("");
       setDescription("");
-      setCategory("");
+      setMainCategory("");
+      setSubCategory("");
     } catch (err: unknown) {
-      console.error("Add expense error:", err);
+      console.error("Expense error:", err);
       if (axios.isAxiosError(err) && err.response) {
-        setError(err.response.data?.message || "Failed to add expense");
-        toast.error(err.response.data?.message || "Failed to add expense");
+        setError(err.response.data?.message || "Failed to process expense");
+        toast.error(err.response.data?.message || "Failed to process expense");
       } else {
-        setError("Failed to add expense");
-        toast.error("Failed to add expense");
+        setError("Failed to process expense");
+        toast.error("Failed to process expense");
       }
     } finally {
       setIsAddingExpense(false);
@@ -145,7 +185,7 @@ export default function Dashboard() {
     }
 
     try {
-      setDeletingExpenseId(id); // Start loading for this expense
+      setDeletingExpenseId(id);
       await axios.delete(`${process.env.NEXT_PUBLIC_BACKEND}expenses/${id}`, {
         headers: {
           "Content-Type": "application/json",
@@ -158,8 +198,25 @@ export default function Dashboard() {
       console.error("Delete expense error:", err);
       toast.error("Failed to delete expense");
     } finally {
-      setDeletingExpenseId(null); // Stop loading
+      setDeletingExpenseId(null);
     }
+  };
+
+  const handleEditExpense = (expense: Expense) => {
+    setEditingExpenseId(expense.id);
+    setAmount(expense.amount.toString());
+    setDescription(expense.description);
+    const [mainCat, subCat] = expense.category.split(" - ");
+    setMainCategory(mainCat);
+    setSubCategory(subCat || "");
+  };
+
+  const handleCancelEdit = () => {
+    setEditingExpenseId(null);
+    setAmount("");
+    setDescription("");
+    setMainCategory("");
+    setSubCategory("");
   };
 
   const handleLogout = () => {
@@ -216,7 +273,7 @@ export default function Dashboard() {
           </Card>
         </motion.div>
 
-        {/* Add Expense Form */}
+        {/* Add/Edit Expense Form */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -225,11 +282,11 @@ export default function Dashboard() {
           <Card className="mb-8 bg-white/10 backdrop-blur-xl border border-green-500/20 shadow-xl rounded-xl">
             <CardHeader>
               <CardTitle className="text-xl font-semibold text-green-100">
-                Add New Expense
+                {editingExpenseId ? "Edit Expense" : "Add New Expense"}
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleAddExpense} className="space-y-6">
+              <form onSubmit={handleAddOrEditExpense} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <Label
@@ -268,31 +325,66 @@ export default function Dashboard() {
                   </div>
                   <div className="space-y-2">
                     <Label
-                      htmlFor="category"
+                      htmlFor="mainCategory"
                       className="text-green-100/80 text-sm font-medium"
                     >
                       Category
                     </Label>
-                    <Input
-                      id="category"
-                      type="text"
-                      value={category}
-                      disabled={true}
-                      onChange={(e) => setCategory(e.target.value)}
-                      className="bg-white/5 border-green-500/30 text-green-100 placeholder:text-green-100/50 focus:ring-2 focus:ring-green-500 focus:border-green-500 rounded-md p-2"
-                      placeholder="e.g., Food"
+                    <select
+                      id="mainCategory"
+                      value={mainCategory}
+                      onChange={(e) => {
+                        setMainCategory(e.target.value);
+                        setSubCategory(""); // Reset subcategory when main category changes
+                      }}
+                      className="w-full bg-gradient-to-r from-green-500 to-teal-500 border-green-500/30 text-black focus:ring-2 focus:ring-green-500 focus:border-green-500 rounded-md p-2"
                       required
-                    />
+                    >
+                      <option
+                        className="bg-gradient-to-r from-green-500 to-teal-500 "
+                        value=""
+                        disabled
+                      >
+                        Select a category
+                      </option>
+                      {categoryOptions.map((cat) => (
+                        <option
+                          className="bg-gradient-to-r from-green-500 to-teal-500 "
+                          key={cat}
+                          value={cat}
+                        >
+                          {cat}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
+
                 {error && <p className="text-red-400 text-sm">{error}</p>}
-                <Button
-                  type="submit"
-                  disabled={isAddingExpense}
-                  className="w-full bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600 text-white font-semibold py-2 rounded-md shadow-md disabled:opacity-50"
-                >
-                  {isAddingExpense ? <Spinner /> : "Add Expense"}
-                </Button>
+                <div className="flex gap-4">
+                  <Button
+                    type="submit"
+                    disabled={isAddingExpense}
+                    className="w-full bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600 text-white font-semibold py-2 rounded-md shadow-md disabled:opacity-50"
+                  >
+                    {isAddingExpense ? (
+                      <Spinner />
+                    ) : editingExpenseId ? (
+                      "Update Expense"
+                    ) : (
+                      "Add Expense"
+                    )}
+                  </Button>
+                  {editingExpenseId && (
+                    <Button
+                      type="button"
+                      onClick={handleCancelEdit}
+                      className="w-full bg-gray-500 hover:bg-gray-600 text-white font-semibold py-2 rounded-md shadow-md"
+                    >
+                      Cancel
+                    </Button>
+                  )}
+                </div>
               </form>
             </CardContent>
           </Card>
@@ -342,7 +434,7 @@ export default function Dashboard() {
                         key={index}
                         initial={{ opacity: 0, x: -20 }}
                         animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: 20 }} // Animation for removal
+                        exit={{ opacity: 0, x: 20 }}
                         transition={{ duration: 0.3, delay: index * 0.1 }}
                         className="border-b border-green-500/10 hover:bg-white/5 transition-colors"
                       >
@@ -358,7 +450,14 @@ export default function Dashboard() {
                         <TableCell className="text-green-100 text-right">
                           R{expense.amount?.toFixed(2)}
                         </TableCell>
-                        <TableCell className="text-right">
+                        <TableCell className="text-right space-x-2">
+                          <Button
+                            onClick={() => handleEditExpense(expense)}
+                            disabled={deletingExpenseId === expense.id}
+                            className="bg-yellow-500/80 hover:bg-yellow-600 text-white py-1 px-2 rounded-md text-sm disabled:opacity-50"
+                          >
+                            Edit
+                          </Button>
                           <Button
                             onClick={() => handleDeleteExpense(expense.id)}
                             disabled={deletingExpenseId === expense.id}
