@@ -8,13 +8,13 @@ export default function Home() {
         </p>
         <div className="space-x-4">
           <a
-            href="/login"
+            href="/auth/login"
             className="text-green-300 hover:underline font-semibold"
           >
             Log In
           </a>
           <a
-            href="/register"
+            href="/auth/register"
             className="text-green-300 hover:underline font-semibold"
           >
             Sign Up
