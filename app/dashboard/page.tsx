@@ -1,3 +1,4 @@
+// pages/dashboard.tsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -39,6 +40,11 @@ type Expense = {
   date: string;
 };
 
+type CategorySummary = {
+  category: string;
+  total: string;
+};
+
 const getCookie = (name: string) => {
   const value = `; ${document.cookie}`;
   const parts = value.split(`; ${name}=`);
@@ -48,6 +54,8 @@ const getCookie = (name: string) => {
 
 export default function Dashboard() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [filteredExpenses, setFilteredExpenses] = useState<Expense[]>([]);
+  const [categorySummary, setCategorySummary] = useState<CategorySummary[]>([]);
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
   const [mainCategory, setMainCategory] = useState("");
@@ -55,6 +63,7 @@ export default function Dashboard() {
   const [date, setDate] = useState("");
   const [error, setError] = useState("");
   const [isLoadingExpenses, setIsLoadingExpenses] = useState(true);
+  const [isLoadingSummary, setIsLoadingSummary] = useState(true);
   const [isAddingExpense, setIsAddingExpense] = useState(false);
   const [deletingExpenseId, setDeletingExpenseId] = useState<string | null>(
     null
@@ -62,6 +71,7 @@ export default function Dashboard() {
   const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<keyof Expense | "">("");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  const [searchTerm, setSearchTerm] = useState("");
   const router = useRouter();
 
   useEffect(() => {
@@ -110,6 +120,7 @@ export default function Dashboard() {
         }
 
         setExpenses(fetchedExpenses);
+        setFilteredExpenses(fetchedExpenses); // Initialize filtered expenses
       } catch (err) {
         console.error("Fetch expenses error:", err);
         setError("Failed to load expenses");
@@ -124,6 +135,16 @@ export default function Dashboard() {
 
     fetchExpenses();
   }, [router, sortBy, sortOrder]);
+
+  // Filter expenses based on search term
+  useEffect(() => {
+    const filtered = expenses.filter(
+      (expense) =>
+        expense.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        expense.category.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    setFilteredExpenses(filtered);
+  }, [searchTerm, expenses]);
 
   const handleAddOrEditExpense = async (
     e: React.FormEvent<HTMLFormElement>
@@ -431,6 +452,15 @@ export default function Dashboard() {
               <CardTitle className="text-xl font-semibold text-green-100">
                 Recent Expenses
               </CardTitle>
+              <div className="w-full mx-auto">
+                <Input
+                  type="text"
+                  placeholder="Search expenses..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full bg-white/5 border-green-500/30 text-green-100 placeholder:text-green-100/50 focus:ring-2 focus:ring-green-500 focus:border-green-500 rounded-md p-2"
+                />
+              </div>
               <div className="space-x-2">
                 <Button
                   onClick={() => handleSort("date")}
@@ -464,9 +494,11 @@ export default function Dashboard() {
             <CardContent>
               {isLoadingExpenses ? (
                 <Spinner />
-              ) : expenses.length === 0 ? (
+              ) : filteredExpenses.length === 0 ? (
                 <p className="text-green-200/70 text-center py-4">
-                  No expenses yet. Add one above!
+                  {searchTerm
+                    ? "No matching expenses found."
+                    : "No expenses yet. Add one above!"}
                 </p>
               ) : (
                 <Table>
@@ -488,7 +520,7 @@ export default function Dashboard() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {expenses.map((expense, index) => (
+                    {filteredExpenses.map((expense, index) => (
                       <motion.tr
                         key={index}
                         initial={{ opacity: 0, x: -20 }}
@@ -507,7 +539,14 @@ export default function Dashboard() {
                           ).toDateString()}
                         </TableCell>
                         <TableCell className="text-green-100">
-                          {expense.description}
+                          <span
+                            className="truncate block w-[200px]"
+                            title={expense.description}
+                          >
+                            {expense.description.length > 20
+                              ? `${expense.description.substring(0, 20)}...`
+                              : expense.description}
+                          </span>
                         </TableCell>
                         <TableCell className="text-green-100">
                           {expense.category}
