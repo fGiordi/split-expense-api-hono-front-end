@@ -19,14 +19,13 @@ import { toast } from "react-toastify";
 import { motion } from "framer-motion";
 import { categoryOptions } from "@/types";
 
-// Simple spinner component
+// Spinners
 const Spinner = () => (
   <div className="flex justify-center items-center py-4">
     <div className="w-8 h-8 border-4 border-green-500 border-t-transparent rounded-full animate-spin"></div>
   </div>
 );
 
-// Small spinner for delete/edit buttons
 const SmallSpinner = () => (
   <div className="w-4 h-4 border-2 border-red-500 border-t-transparent rounded-full animate-spin"></div>
 );
@@ -40,9 +39,11 @@ type Expense = {
   date: string;
 };
 
-// Extract main category names
+type CategorySummary = {
+  category: string;
+  total: string;
+};
 
-// Utility function to get cookie by name
 const getCookie = (name: string) => {
   const value = `; ${document.cookie}`;
   const parts = value.split(`; ${name}=`);
@@ -56,6 +57,7 @@ export default function Dashboard() {
   const [description, setDescription] = useState("");
   const [mainCategory, setMainCategory] = useState("");
   const [subCategory, setSubCategory] = useState("");
+  const [date, setDate] = useState("");
   const [error, setError] = useState("");
   const [isLoadingExpenses, setIsLoadingExpenses] = useState(true);
   const [isAddingExpense, setIsAddingExpense] = useState(false);
@@ -63,6 +65,8 @@ export default function Dashboard() {
     null
   );
   const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
+  const [sortBy, setSortBy] = useState<keyof Expense | "">("");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const router = useRouter();
 
   useEffect(() => {
@@ -85,7 +89,32 @@ export default function Dashboard() {
             },
           }
         );
-        setExpenses(response.data);
+        let fetchedExpenses = response.data;
+
+        // Apply sorting
+        if (sortBy) {
+          fetchedExpenses.sort((a: Expense, b: Expense) => {
+            let valueA = a[sortBy];
+            let valueB = b[sortBy];
+
+            // Handle date comparison
+            if (sortBy === "date" || sortBy === "createdAt") {
+              valueA = new Date(a[sortBy] || a.createdAt).getTime();
+              valueB = new Date(b[sortBy] || b.createdAt).getTime();
+            } else if (sortBy === "amount") {
+              valueA = a.amount;
+              valueB = b.amount;
+            }
+
+            if (sortOrder === "asc") {
+              return valueA > valueB ? 1 : -1;
+            } else {
+              return valueA < valueB ? 1 : -1;
+            }
+          });
+        }
+
+        setExpenses(fetchedExpenses);
       } catch (err) {
         console.error("Fetch expenses error:", err);
         setError("Failed to load expenses");
@@ -97,8 +126,9 @@ export default function Dashboard() {
         setIsLoadingExpenses(false);
       }
     };
+
     fetchExpenses();
-  }, [router]);
+  }, [router, sortBy, sortOrder]);
 
   const handleAddOrEditExpense = async (
     e: React.FormEvent<HTMLFormElement>
@@ -125,6 +155,7 @@ export default function Dashboard() {
             amount: parseFloat(amount),
             description,
             category: combinedCategory,
+            date: date || new Date().toISOString().split("T")[0],
           },
           {
             headers: {
@@ -147,6 +178,7 @@ export default function Dashboard() {
             amount: parseFloat(amount),
             description,
             category: combinedCategory,
+            date: date || new Date().toISOString().split("T")[0],
           },
           {
             headers: {
@@ -162,6 +194,7 @@ export default function Dashboard() {
       setDescription("");
       setMainCategory("");
       setSubCategory("");
+      setDate("");
     } catch (err: unknown) {
       console.error("Expense error:", err);
       if (axios.isAxiosError(err) && err.response) {
@@ -206,6 +239,7 @@ export default function Dashboard() {
     setEditingExpenseId(expense.id);
     setAmount(expense.amount.toString());
     setDescription(expense.description);
+    setDate(expense.date);
     const [mainCat, subCat] = expense.category.split(" - ");
     setMainCategory(mainCat);
     setSubCategory(subCat || "");
@@ -217,6 +251,16 @@ export default function Dashboard() {
     setDescription("");
     setMainCategory("");
     setSubCategory("");
+    setDate("");
+  };
+
+  const handleSort = (key: keyof Expense) => {
+    if (sortBy === key) {
+      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+    } else {
+      setSortBy(key);
+      setSortOrder("asc");
+    }
   };
 
   const handleLogout = () => {
@@ -249,7 +293,7 @@ export default function Dashboard() {
           </Button>
         </motion.div>
 
-        {/* Summary Card */}
+        {/* Total Expenses Card */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -308,6 +352,32 @@ export default function Dashboard() {
                   </div>
                   <div className="space-y-2">
                     <Label
+                      htmlFor="mainCategory"
+                      className="text-green-100/80 text-sm font-medium"
+                    >
+                      Category
+                    </Label>
+                    <select
+                      id="mainCategory"
+                      value={mainCategory}
+                      onChange={(e) => {
+                        setMainCategory(e.target.value);
+                      }}
+                      className="w-full bg-gradient-to-r from-green-500 to-teal-500 border-green-500/30 text-black focus:ring-2 focus:ring-green-500 focus:border-green-500 rounded-md p-2"
+                      required
+                    >
+                      <option value="" disabled>
+                        Select a category
+                      </option>
+                      {categoryOptions.map((cat) => (
+                        <option key={cat} value={cat}>
+                          {cat}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label
                       htmlFor="description"
                       className="text-green-100/80 text-sm font-medium"
                     >
@@ -322,41 +392,6 @@ export default function Dashboard() {
                       placeholder="e.g., Coffee"
                       required
                     />
-                  </div>
-                  <div className="space-y-2">
-                    <Label
-                      htmlFor="mainCategory"
-                      className="text-green-100/80 text-sm font-medium"
-                    >
-                      Category
-                    </Label>
-                    <select
-                      id="mainCategory"
-                      value={mainCategory}
-                      onChange={(e) => {
-                        setMainCategory(e.target.value);
-                        setSubCategory(""); // Reset subcategory when main category changes
-                      }}
-                      className="w-full bg-gradient-to-r from-green-500 to-teal-500 border-green-500/30 text-black focus:ring-2 focus:ring-green-500 focus:border-green-500 rounded-md p-2"
-                      required
-                    >
-                      <option
-                        className="bg-gradient-to-r from-green-500 to-teal-500 "
-                        value=""
-                        disabled
-                      >
-                        Select a category
-                      </option>
-                      {categoryOptions.map((cat) => (
-                        <option
-                          className="bg-gradient-to-r from-green-500 to-teal-500 "
-                          key={cat}
-                          value={cat}
-                        >
-                          {cat}
-                        </option>
-                      ))}
-                    </select>
                   </div>
                 </div>
 
@@ -397,10 +432,39 @@ export default function Dashboard() {
           transition={{ duration: 0.5, delay: 0.7 }}
         >
           <Card className="bg-white/10 backdrop-blur-xl border border-green-500/20 shadow-xl rounded-xl">
-            <CardHeader>
+            <CardHeader className="flex justify-between items-center">
               <CardTitle className="text-xl font-semibold text-green-100">
                 Recent Expenses
               </CardTitle>
+              <div className="space-x-2">
+                <Button
+                  onClick={() => handleSort("date")}
+                  className={`bg-green-500/80 hover:bg-green-600 text-white py-1 px-2 rounded-md text-sm ${
+                    sortBy === "date" ? "font-bold" : ""
+                  }`}
+                >
+                  Sort by Date{" "}
+                  {sortBy === "date" && (sortOrder === "asc" ? "↑" : "↓")}
+                </Button>
+                <Button
+                  onClick={() => handleSort("amount")}
+                  className={`bg-green-500/80 hover:bg-green-600 text-white py-1 px-2 rounded-md text-sm ${
+                    sortBy === "amount" ? "font-bold" : ""
+                  }`}
+                >
+                  Sort by Amount{" "}
+                  {sortBy === "amount" && (sortOrder === "asc" ? "↑" : "↓")}
+                </Button>
+                <Button
+                  onClick={() => handleSort("category")}
+                  className={`bg-green-500/80 hover:bg-green-600 text-white py-1 px-2 rounded-md text-sm ${
+                    sortBy === "category" ? "font-bold" : ""
+                  }`}
+                >
+                  Sort by Category{" "}
+                  {sortBy === "category" && (sortOrder === "asc" ? "↑" : "↓")}
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               {isLoadingExpenses ? (
@@ -436,10 +500,16 @@ export default function Dashboard() {
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: 20 }}
                         transition={{ duration: 0.3, delay: index * 0.1 }}
-                        className="border-b border-green-500/10 hover:bg-white/5 transition-colors"
+                        className={`border-b border-green-500/10 transition-colors ${
+                          editingExpenseId === expense.id
+                            ? "bg-green-500/20"
+                            : "hover:bg-white/5"
+                        }`}
                       >
                         <TableCell className="text-green-100">
-                          {new Date(expense.createdAt).toDateString()}
+                          {new Date(
+                            expense.date || expense.createdAt
+                          ).toDateString()}
                         </TableCell>
                         <TableCell className="text-green-100">
                           {expense.description}
