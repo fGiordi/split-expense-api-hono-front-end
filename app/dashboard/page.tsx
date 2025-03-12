@@ -39,11 +39,6 @@ type Expense = {
   date: string;
 };
 
-type CategorySummary = {
-  category: string;
-  total: string;
-};
-
 const getCookie = (name: string) => {
   const value = `; ${document.cookie}`;
   const parts = value.split(`; ${name}=`);
