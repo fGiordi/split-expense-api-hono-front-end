@@ -19,6 +19,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
 import { motion } from "framer-motion";
 import { categoryOptions } from "@/types";
+import { DatePicker } from "@/components/ui/datePicker";
 
 // Spinners
 const Spinner = () => (
@@ -38,6 +39,7 @@ type Expense = {
   description: string;
   category: string;
   date: string;
+  tags: string[];
 };
 
 type CategorySummary = {
@@ -60,7 +62,8 @@ export default function Dashboard() {
   const [description, setDescription] = useState("");
   const [mainCategory, setMainCategory] = useState("");
   const [subCategory, setSubCategory] = useState("");
-  const [date, setDate] = useState("");
+  const [tags, setTags] = useState<string[]>([]);
+  const [tagInput, setTagInput] = useState("");
   const [error, setError] = useState("");
   const [isLoadingExpenses, setIsLoadingExpenses] = useState(true);
   const [isLoadingSummary, setIsLoadingSummary] = useState(true);
@@ -72,7 +75,10 @@ export default function Dashboard() {
   const [sortBy, setSortBy] = useState<keyof Expense | "">("");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [searchTerm, setSearchTerm] = useState("");
+  const [filterTag, setFilterTag] = useState("");
   const router = useRouter();
+
+  const [date, setDate] = useState<Date | undefined>(new Date());
 
   useEffect(() => {
     const fetchExpenses = async () => {
@@ -102,7 +108,6 @@ export default function Dashboard() {
             let valueA = a[sortBy];
             let valueB = b[sortBy];
 
-            // Handle date comparison
             if (sortBy === "date" || sortBy === "createdAt") {
               valueA = new Date(a[sortBy] || a.createdAt).getTime();
               valueB = new Date(b[sortBy] || b.createdAt).getTime();
@@ -120,7 +125,7 @@ export default function Dashboard() {
         }
 
         setExpenses(fetchedExpenses);
-        setFilteredExpenses(fetchedExpenses); // Initialize filtered expenses
+        setFilteredExpenses(fetchedExpenses);
       } catch (err) {
         console.error("Fetch expenses error:", err);
         setError("Failed to load expenses");
@@ -136,15 +141,28 @@ export default function Dashboard() {
     fetchExpenses();
   }, [router, sortBy, sortOrder]);
 
-  // Filter expenses based on search term
+  // Filter expenses based on search term and tag
   useEffect(() => {
-    const filtered = expenses.filter(
-      (expense) =>
-        expense.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        expense.category.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    let filtered = expenses;
+
+    if (searchTerm) {
+      filtered = filtered.filter(
+        (expense) =>
+          expense.description
+            .toLowerCase()
+            .includes(searchTerm.toLowerCase()) ||
+          expense.category.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    if (filterTag) {
+      filtered = filtered.filter((expense) =>
+        expense.tags.includes(filterTag.toLowerCase())
+      );
+    }
+
     setFilteredExpenses(filtered);
-  }, [searchTerm, expenses]);
+  }, [searchTerm, filterTag, expenses]);
 
   const handleAddOrEditExpense = async (
     e: React.FormEvent<HTMLFormElement>
@@ -164,6 +182,10 @@ export default function Dashboard() {
 
     try {
       setIsAddingExpense(true);
+      const formattedDate = date
+        ? date.toISOString().split("T")[0] // Convert Date to YYYY-MM-DD
+        : new Date().toISOString().split("T")[0]; // Default to today if no date selected
+
       if (editingExpenseId) {
         const response = await axios.put(
           `${process.env.NEXT_PUBLIC_BACKEND}expenses/${editingExpenseId}`,
@@ -171,7 +193,8 @@ export default function Dashboard() {
             amount: parseFloat(amount),
             description,
             category: combinedCategory,
-            date: date || new Date().toISOString().split("T")[0],
+            date: formattedDate,
+            tags: tags.map((tag) => tag.toLowerCase()),
           },
           {
             headers: {
@@ -194,7 +217,8 @@ export default function Dashboard() {
             amount: parseFloat(amount),
             description,
             category: combinedCategory,
-            date: date || new Date().toISOString().split("T")[0],
+            date: formattedDate,
+            tags: tags.map((tag) => tag.toLowerCase()),
           },
           {
             headers: {
@@ -210,7 +234,9 @@ export default function Dashboard() {
       setDescription("");
       setMainCategory("");
       setSubCategory("");
-      setDate("");
+      setDate(undefined); // Reset to undefined for DatePicker
+      setTags([]);
+      setTagInput("");
     } catch (err: unknown) {
       console.error("Expense error:", err);
       if (axios.isAxiosError(err) && err.response) {
@@ -255,10 +281,11 @@ export default function Dashboard() {
     setEditingExpenseId(expense.id);
     setAmount(expense.amount.toString());
     setDescription(expense.description);
-    setDate(expense.date);
+    setDate(expense.date ? new Date(expense.date) : undefined); // Convert string to Date for DatePicker
     const [mainCat, subCat] = expense.category.split(" - ");
     setMainCategory(mainCat);
     setSubCategory(subCat || "");
+    setTags(expense.tags || []);
   };
 
   const handleCancelEdit = () => {
@@ -267,7 +294,9 @@ export default function Dashboard() {
     setDescription("");
     setMainCategory("");
     setSubCategory("");
-    setDate("");
+    setDate(undefined); // Reset to undefined for DatePicker
+    setTags([]);
+    setTagInput("");
   };
 
   const handleSort = (key: keyof Expense) => {
@@ -279,6 +308,18 @@ export default function Dashboard() {
     }
   };
 
+  const handleAddTag = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" && tagInput.trim()) {
+      e.preventDefault();
+      setTags([...tags, tagInput.trim().toLowerCase()]);
+      setTagInput("");
+    }
+  };
+
+  const handleRemoveTag = (tagToRemove: string) => {
+    setTags(tags.filter((tag) => tag !== tagToRemove));
+  };
+
   const handleLogout = () => {
     document.cookie = "token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
     router.push("/auth/login");
@@ -287,6 +328,40 @@ export default function Dashboard() {
   const totalExpenses = expenses
     .reduce((sum, expense) => sum + Number(expense.amount), 0)
     .toFixed(2);
+
+  // Get all unique tags for filtering
+  const allTags = Array.from(
+    new Set(expenses.flatMap((expense) => expense.tags || []))
+  );
+
+  // Calculate the date range for the Total Expenses Card
+  const getDateRange = (expenses: Expense[]) => {
+    if (!expenses.length) return "All Time";
+
+    const dates = expenses
+      .map((exp) => new Date(exp.date || exp.createdAt))
+      .filter((date) => !isNaN(date.getTime()));
+
+    if (!dates.length) return "All Time";
+
+    const earliest = new Date(Math.min(...dates.map((d) => d.getTime())));
+    const latest = new Date(Math.max(...dates.map((d) => d.getTime())));
+
+    if (
+      earliest.getMonth() === latest.getMonth() &&
+      earliest.getFullYear() === latest.getFullYear()
+    ) {
+      return `${earliest.toLocaleString("default", {
+        month: "long",
+      })} ${earliest.getFullYear()}`;
+    }
+
+    return `${earliest.toLocaleString("default", {
+      month: "short",
+    })} ${earliest.getFullYear()} - ${latest.toLocaleString("default", {
+      month: "short",
+    })} ${latest.getFullYear()}`;
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-900 via-teal-800 to-gray-900 p-6">
@@ -318,7 +393,7 @@ export default function Dashboard() {
           <Card className="mb-8 bg-white/10 backdrop-blur-xl border border-green-500/20 shadow-xl rounded-xl">
             <CardHeader>
               <CardTitle className="text-xl font-semibold text-green-100">
-                Total Expenses
+                Total Expenses for {getDateRange(filteredExpenses)}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -326,8 +401,9 @@ export default function Dashboard() {
                 R{totalExpenses}
               </p>
               <p className="text-green-200/70 text-sm mt-1">
-                {expenses.length}{" "}
-                {expenses.length === 1 ? "expense" : "expenses"} recorded
+                {filteredExpenses.length}{" "}
+                {filteredExpenses.length === 1 ? "expense" : "expenses"}{" "}
+                recorded
               </p>
             </CardContent>
           </Card>
@@ -410,7 +486,55 @@ export default function Dashboard() {
                     />
                   </div>
                 </div>
-
+                <div className="grid grid-cols-1 md:grid-cols-2 space-y-2 w-full space-x-10 ">
+                  <div className="flex flex-col space-y-2">
+                    <Label
+                      htmlFor="date"
+                      className="text-green-100/80 text-sm font-medium block"
+                    >
+                      Date
+                    </Label>
+                    <DatePicker
+                      date={date}
+                      onSelect={setDate}
+                      className="bg-teal-500 border-green-500/30 text-green-100 placeholder:text-green-100/50 focus:ring-2 focus:ring-green-500 focus:border-green-500 rounded-md p-2"
+                    />
+                  </div>
+                  <div className="flex flex-col space-y-2">
+                    <Label
+                      htmlFor="tags"
+                      className="text-green-100/80 text-sm font-medium"
+                    >
+                      Tags (Press Enter to Add)
+                    </Label>
+                    <Input
+                      id="tags"
+                      type="text"
+                      value={tagInput}
+                      onChange={(e) => setTagInput(e.target.value)}
+                      onKeyDown={handleAddTag}
+                      className="bg-white/5 border-green-500/30 text-green-100 placeholder:text-green-100/50 focus:ring-2 focus:ring-green-500 focus:border-green-500 rounded-md p-2"
+                      placeholder="e.g., urgent"
+                    />
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {tags.map((tag) => (
+                        <span
+                          key={tag}
+                          className="bg-green-500/80 text-white px-2 py-1 rounded-md text-sm flex items-center"
+                        >
+                          {tag}
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveTag(tag)}
+                            className="ml-2 text-red-300 hover:text-red-400"
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
                 {error && <p className="text-red-400 text-sm">{error}</p>}
                 <div className="flex gap-4">
                   <Button
@@ -448,47 +572,59 @@ export default function Dashboard() {
           transition={{ duration: 0.5, delay: 0.7 }}
         >
           <Card className="bg-white/10 backdrop-blur-xl border border-green-500/20 shadow-xl rounded-xl">
-            <CardHeader className="flex justify-between items-center">
+            <CardHeader className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <CardTitle className="text-xl font-semibold text-green-100">
                 Recent Expenses
               </CardTitle>
-              <div className="w-full mx-auto">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full sm:w-auto">
                 <Input
                   type="text"
                   placeholder="Search expenses..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full bg-white/5 border-green-500/30 text-green-100 placeholder:text-green-100/50 focus:ring-2 focus:ring-green-500 focus:border-green-500 rounded-md p-2"
+                  className="bg-white/5 border-green-500/30 text-green-100 placeholder:text-green-100/50 focus:ring-2 focus:ring-green-500 focus:border-green-500 rounded-md p-2 w-full sm:w-64"
                 />
-              </div>
-              <div className="space-x-2">
-                <Button
-                  onClick={() => handleSort("date")}
-                  className={`bg-green-500/80 hover:bg-green-600 text-white py-1 px-2 rounded-md text-sm ${
-                    sortBy === "date" ? "font-bold" : ""
-                  }`}
+                <select
+                  value={filterTag}
+                  onChange={(e) => setFilterTag(e.target.value)}
+                  className="bg-white/5 border-green-500/30 text-green-100 focus:ring-2 focus:ring-green-500 focus:border-green-500 rounded-md p-2 w-full sm:w-40"
                 >
-                  Sort by Date{" "}
-                  {sortBy === "date" && (sortOrder === "asc" ? "↑" : "↓")}
-                </Button>
-                <Button
-                  onClick={() => handleSort("amount")}
-                  className={`bg-green-500/80 hover:bg-green-600 text-white py-1 px-2 rounded-md text-sm ${
-                    sortBy === "amount" ? "font-bold" : ""
-                  }`}
-                >
-                  Sort by Amount{" "}
-                  {sortBy === "amount" && (sortOrder === "asc" ? "↑" : "↓")}
-                </Button>
-                <Button
-                  onClick={() => handleSort("category")}
-                  className={`bg-green-500/80 hover:bg-green-600 text-white py-1 px-2 rounded-md text-sm ${
-                    sortBy === "category" ? "font-bold" : ""
-                  }`}
-                >
-                  Sort by Category{" "}
-                  {sortBy === "category" && (sortOrder === "asc" ? "↑" : "↓")}
-                </Button>
+                  <option value="">Filter by Tag</option>
+                  {allTags.map((tag) => (
+                    <option key={tag} value={tag}>
+                      {tag}
+                    </option>
+                  ))}
+                </select>
+                <div className="flex gap-2 flex-col md:flex-row">
+                  <Button
+                    onClick={() => handleSort("date")}
+                    className={`bg-green-500/80 hover:bg-green-600 text-white py-1 px-2 rounded-md text-sm ${
+                      sortBy === "date" ? "font-bold" : ""
+                    }`}
+                  >
+                    Sort by Date{" "}
+                    {sortBy === "date" && (sortOrder === "asc" ? "↑" : "↓")}
+                  </Button>
+                  <Button
+                    onClick={() => handleSort("amount")}
+                    className={`bg-green-500/80 hover:bg-green-600 text-white py-1 px-2 rounded-md text-sm ${
+                      sortBy === "amount" ? "font-bold" : ""
+                    }`}
+                  >
+                    Sort by Amount{" "}
+                    {sortBy === "amount" && (sortOrder === "asc" ? "↑" : "↓")}
+                  </Button>
+                  <Button
+                    onClick={() => handleSort("category")}
+                    className={`bg-green-500/80 hover:bg-green-600 text-white py-1 px-2 rounded-md text-sm ${
+                      sortBy === "category" ? "font-bold" : ""
+                    }`}
+                  >
+                    Sort by Category{" "}
+                    {sortBy === "category" && (sortOrder === "asc" ? "↑" : "↓")}
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent>
@@ -496,7 +632,7 @@ export default function Dashboard() {
                 <Spinner />
               ) : filteredExpenses.length === 0 ? (
                 <p className="text-green-200/70 text-center py-4">
-                  {searchTerm
+                  {searchTerm || filterTag
                     ? "No matching expenses found."
                     : "No expenses yet. Add one above!"}
                 </p>
@@ -511,6 +647,7 @@ export default function Dashboard() {
                       <TableHead className="text-green-100/80">
                         Category
                       </TableHead>
+                      <TableHead className="text-green-100/80">Tags</TableHead>
                       <TableHead className="text-green-100/80 text-right">
                         Amount
                       </TableHead>
@@ -550,6 +687,18 @@ export default function Dashboard() {
                         </TableCell>
                         <TableCell className="text-green-100">
                           {expense.category}
+                        </TableCell>
+                        <TableCell className="text-green-100">
+                          <div className="flex flex-wrap gap-1">
+                            {(expense.tags || []).map((tag) => (
+                              <span
+                                key={tag}
+                                className="bg-green-500/80 text-white px-2 py-1 rounded-md text-xs"
+                              >
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
                         </TableCell>
                         <TableCell className="text-green-100 text-right">
                           R{expense.amount?.toFixed(2)}
