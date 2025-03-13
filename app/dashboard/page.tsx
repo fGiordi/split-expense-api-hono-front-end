@@ -42,10 +42,10 @@ type Expense = {
   tags: string[];
 };
 
-type CategorySummary = {
-  category: string;
-  total: string;
-};
+// type CategorySummary = {
+//   category: string;
+//   total: string;
+// };
 
 const getCookie = (name: string) => {
   const value = `; ${document.cookie}`;
@@ -57,7 +57,7 @@ const getCookie = (name: string) => {
 export default function Dashboard() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [filteredExpenses, setFilteredExpenses] = useState<Expense[]>([]);
-  const [categorySummary, setCategorySummary] = useState<CategorySummary[]>([]);
+  // const [categorySummary, setCategorySummary] = useState<CategorySummary[]>([]);
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
   const [mainCategory, setMainCategory] = useState("");
@@ -66,7 +66,7 @@ export default function Dashboard() {
   const [tagInput, setTagInput] = useState("");
   const [error, setError] = useState("");
   const [isLoadingExpenses, setIsLoadingExpenses] = useState(true);
-  const [isLoadingSummary, setIsLoadingSummary] = useState(true);
+  // const [isLoadingSummary, setIsLoadingSummary] = useState(true);
   const [isAddingExpense, setIsAddingExpense] = useState(false);
   const [deletingExpenseId, setDeletingExpenseId] = useState<string | null>(
     null
@@ -100,7 +100,7 @@ export default function Dashboard() {
             },
           }
         );
-        let fetchedExpenses = response.data;
+        const fetchedExpenses = response.data;
 
         // Apply sorting
         if (sortBy) {
