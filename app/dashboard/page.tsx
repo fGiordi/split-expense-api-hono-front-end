@@ -1,3 +1,4 @@
+// pages/dashboard.tsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -18,15 +19,15 @@ import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
 import { motion } from "framer-motion";
 import { categoryOptions } from "@/types";
+import { DatePicker } from "@/components/ui/datePicker";
 
-// Simple spinner component
+// Spinners
 const Spinner = () => (
   <div className="flex justify-center items-center py-4">
     <div className="w-8 h-8 border-4 border-green-500 border-t-transparent rounded-full animate-spin"></div>
   </div>
 );
 
-// Small spinner for delete/edit buttons
 const SmallSpinner = () => (
   <div className="w-4 h-4 border-2 border-red-500 border-t-transparent rounded-full animate-spin"></div>
 );
@@ -38,11 +39,14 @@ type Expense = {
   description: string;
   category: string;
   date: string;
+  tags: string[];
 };
 
-// Extract main category names
+// type CategorySummary = {
+//   category: string;
+//   total: string;
+// };
 
-// Utility function to get cookie by name
 const getCookie = (name: string) => {
   const value = `; ${document.cookie}`;
   const parts = value.split(`; ${name}=`);
@@ -52,18 +56,29 @@ const getCookie = (name: string) => {
 
 export default function Dashboard() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [filteredExpenses, setFilteredExpenses] = useState<Expense[]>([]);
+  // const [categorySummary, setCategorySummary] = useState<CategorySummary[]>([]);
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
   const [mainCategory, setMainCategory] = useState("");
   const [subCategory, setSubCategory] = useState("");
+  const [tags, setTags] = useState<string[]>([]);
+  const [tagInput, setTagInput] = useState("");
   const [error, setError] = useState("");
   const [isLoadingExpenses, setIsLoadingExpenses] = useState(true);
+  // const [isLoadingSummary, setIsLoadingSummary] = useState(true);
   const [isAddingExpense, setIsAddingExpense] = useState(false);
   const [deletingExpenseId, setDeletingExpenseId] = useState<string | null>(
     null
   );
   const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
+  const [sortBy, setSortBy] = useState<keyof Expense | "">("");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterTag, setFilterTag] = useState("");
   const router = useRouter();
+
+  const [date, setDate] = useState<Date | undefined>(new Date());
 
   useEffect(() => {
     const fetchExpenses = async () => {
@@ -85,7 +100,32 @@ export default function Dashboard() {
             },
           }
         );
-        setExpenses(response.data);
+        const fetchedExpenses = response.data;
+
+        // Apply sorting
+        if (sortBy) {
+          fetchedExpenses.sort((a: Expense, b: Expense) => {
+            let valueA = a[sortBy];
+            let valueB = b[sortBy];
+
+            if (sortBy === "date" || sortBy === "createdAt") {
+              valueA = new Date(a[sortBy] || a.createdAt).getTime();
+              valueB = new Date(b[sortBy] || b.createdAt).getTime();
+            } else if (sortBy === "amount") {
+              valueA = a.amount;
+              valueB = b.amount;
+            }
+
+            if (sortOrder === "asc") {
+              return valueA > valueB ? 1 : -1;
+            } else {
+              return valueA < valueB ? 1 : -1;
+            }
+          });
+        }
+
+        setExpenses(fetchedExpenses);
+        setFilteredExpenses(fetchedExpenses);
       } catch (err) {
         console.error("Fetch expenses error:", err);
         setError("Failed to load expenses");
@@ -97,8 +137,32 @@ export default function Dashboard() {
         setIsLoadingExpenses(false);
       }
     };
+
     fetchExpenses();
-  }, [router]);
+  }, [router, sortBy, sortOrder]);
+
+  // Filter expenses based on search term and tag
+  useEffect(() => {
+    let filtered = expenses;
+
+    if (searchTerm) {
+      filtered = filtered.filter(
+        (expense) =>
+          expense.description
+            .toLowerCase()
+            .includes(searchTerm.toLowerCase()) ||
+          expense.category.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    if (filterTag) {
+      filtered = filtered.filter((expense) =>
+        expense.tags.includes(filterTag.toLowerCase())
+      );
+    }
+
+    setFilteredExpenses(filtered);
+  }, [searchTerm, filterTag, expenses]);
 
   const handleAddOrEditExpense = async (
     e: React.FormEvent<HTMLFormElement>
@@ -118,6 +182,10 @@ export default function Dashboard() {
 
     try {
       setIsAddingExpense(true);
+      const formattedDate = date
+        ? date.toISOString().split("T")[0] // Convert Date to YYYY-MM-DD
+        : new Date().toISOString().split("T")[0]; // Default to today if no date selected
+
       if (editingExpenseId) {
         const response = await axios.put(
           `${process.env.NEXT_PUBLIC_BACKEND}expenses/${editingExpenseId}`,
@@ -125,6 +193,8 @@ export default function Dashboard() {
             amount: parseFloat(amount),
             description,
             category: combinedCategory,
+            date: formattedDate,
+            tags: tags.map((tag) => tag.toLowerCase()),
           },
           {
             headers: {
@@ -147,6 +217,8 @@ export default function Dashboard() {
             amount: parseFloat(amount),
             description,
             category: combinedCategory,
+            date: formattedDate,
+            tags: tags.map((tag) => tag.toLowerCase()),
           },
           {
             headers: {
@@ -162,6 +234,9 @@ export default function Dashboard() {
       setDescription("");
       setMainCategory("");
       setSubCategory("");
+      setDate(undefined); // Reset to undefined for DatePicker
+      setTags([]);
+      setTagInput("");
     } catch (err: unknown) {
       console.error("Expense error:", err);
       if (axios.isAxiosError(err) && err.response) {
@@ -206,9 +281,11 @@ export default function Dashboard() {
     setEditingExpenseId(expense.id);
     setAmount(expense.amount.toString());
     setDescription(expense.description);
+    setDate(expense.date ? new Date(expense.date) : undefined); // Convert string to Date for DatePicker
     const [mainCat, subCat] = expense.category.split(" - ");
     setMainCategory(mainCat);
     setSubCategory(subCat || "");
+    setTags(expense.tags || []);
   };
 
   const handleCancelEdit = () => {
@@ -217,6 +294,30 @@ export default function Dashboard() {
     setDescription("");
     setMainCategory("");
     setSubCategory("");
+    setDate(undefined); // Reset to undefined for DatePicker
+    setTags([]);
+    setTagInput("");
+  };
+
+  const handleSort = (key: keyof Expense) => {
+    if (sortBy === key) {
+      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+    } else {
+      setSortBy(key);
+      setSortOrder("asc");
+    }
+  };
+
+  const handleAddTag = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" && tagInput.trim()) {
+      e.preventDefault();
+      setTags([...tags, tagInput.trim().toLowerCase()]);
+      setTagInput("");
+    }
+  };
+
+  const handleRemoveTag = (tagToRemove: string) => {
+    setTags(tags.filter((tag) => tag !== tagToRemove));
   };
 
   const handleLogout = () => {
@@ -227,6 +328,40 @@ export default function Dashboard() {
   const totalExpenses = expenses
     .reduce((sum, expense) => sum + Number(expense.amount), 0)
     .toFixed(2);
+
+  // Get all unique tags for filtering
+  const allTags = Array.from(
+    new Set(expenses.flatMap((expense) => expense.tags || []))
+  );
+
+  // Calculate the date range for the Total Expenses Card
+  const getDateRange = (expenses: Expense[]) => {
+    if (!expenses.length) return "All Time";
+
+    const dates = expenses
+      .map((exp) => new Date(exp.date || exp.createdAt))
+      .filter((date) => !isNaN(date.getTime()));
+
+    if (!dates.length) return "All Time";
+
+    const earliest = new Date(Math.min(...dates.map((d) => d.getTime())));
+    const latest = new Date(Math.max(...dates.map((d) => d.getTime())));
+
+    if (
+      earliest.getMonth() === latest.getMonth() &&
+      earliest.getFullYear() === latest.getFullYear()
+    ) {
+      return `${earliest.toLocaleString("default", {
+        month: "long",
+      })} ${earliest.getFullYear()}`;
+    }
+
+    return `${earliest.toLocaleString("default", {
+      month: "short",
+    })} ${earliest.getFullYear()} - ${latest.toLocaleString("default", {
+      month: "short",
+    })} ${latest.getFullYear()}`;
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-900 via-teal-800 to-gray-900 p-6">
@@ -249,7 +384,7 @@ export default function Dashboard() {
           </Button>
         </motion.div>
 
-        {/* Summary Card */}
+        {/* Total Expenses Card */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -258,7 +393,7 @@ export default function Dashboard() {
           <Card className="mb-8 bg-white/10 backdrop-blur-xl border border-green-500/20 shadow-xl rounded-xl">
             <CardHeader>
               <CardTitle className="text-xl font-semibold text-green-100">
-                Total Expenses
+                Total Expenses for {getDateRange(filteredExpenses)}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -266,8 +401,9 @@ export default function Dashboard() {
                 R{totalExpenses}
               </p>
               <p className="text-green-200/70 text-sm mt-1">
-                {expenses.length}{" "}
-                {expenses.length === 1 ? "expense" : "expenses"} recorded
+                {filteredExpenses.length}{" "}
+                {filteredExpenses.length === 1 ? "expense" : "expenses"}{" "}
+                recorded
               </p>
             </CardContent>
           </Card>
@@ -308,6 +444,32 @@ export default function Dashboard() {
                   </div>
                   <div className="space-y-2">
                     <Label
+                      htmlFor="mainCategory"
+                      className="text-green-100/80 text-sm font-medium"
+                    >
+                      Category
+                    </Label>
+                    <select
+                      id="mainCategory"
+                      value={mainCategory}
+                      onChange={(e) => {
+                        setMainCategory(e.target.value);
+                      }}
+                      className="w-full bg-gradient-to-r from-green-500 to-teal-500 border-green-500/30 text-black focus:ring-2 focus:ring-green-500 focus:border-green-500 rounded-md p-2"
+                      required
+                    >
+                      <option value="" disabled>
+                        Select a category
+                      </option>
+                      {categoryOptions.map((cat) => (
+                        <option key={cat} value={cat}>
+                          {cat}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label
                       htmlFor="description"
                       className="text-green-100/80 text-sm font-medium"
                     >
@@ -323,43 +485,56 @@ export default function Dashboard() {
                       required
                     />
                   </div>
-                  <div className="space-y-2">
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 space-y-2 w-full space-x-10 ">
+                  <div className="flex flex-col space-y-2">
                     <Label
-                      htmlFor="mainCategory"
+                      htmlFor="date"
+                      className="text-green-100/80 text-sm font-medium block"
+                    >
+                      Date
+                    </Label>
+                    <DatePicker
+                      date={date}
+                      onSelect={setDate}
+                      className="bg-teal-500 border-green-500/30 text-green-100 placeholder:text-green-100/50 focus:ring-2 focus:ring-green-500 focus:border-green-500 rounded-md p-2"
+                    />
+                  </div>
+                  <div className="flex flex-col space-y-2">
+                    <Label
+                      htmlFor="tags"
                       className="text-green-100/80 text-sm font-medium"
                     >
-                      Category
+                      Tags (Press Enter to Add)
                     </Label>
-                    <select
-                      id="mainCategory"
-                      value={mainCategory}
-                      onChange={(e) => {
-                        setMainCategory(e.target.value);
-                        setSubCategory(""); // Reset subcategory when main category changes
-                      }}
-                      className="w-full bg-gradient-to-r from-green-500 to-teal-500 border-green-500/30 text-black focus:ring-2 focus:ring-green-500 focus:border-green-500 rounded-md p-2"
-                      required
-                    >
-                      <option
-                        className="bg-gradient-to-r from-green-500 to-teal-500 "
-                        value=""
-                        disabled
-                      >
-                        Select a category
-                      </option>
-                      {categoryOptions.map((cat) => (
-                        <option
-                          className="bg-gradient-to-r from-green-500 to-teal-500 "
-                          key={cat}
-                          value={cat}
+                    <Input
+                      id="tags"
+                      type="text"
+                      value={tagInput}
+                      onChange={(e) => setTagInput(e.target.value)}
+                      onKeyDown={handleAddTag}
+                      className="bg-white/5 border-green-500/30 text-green-100 placeholder:text-green-100/50 focus:ring-2 focus:ring-green-500 focus:border-green-500 rounded-md p-2"
+                      placeholder="e.g., urgent"
+                    />
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {tags.map((tag) => (
+                        <span
+                          key={tag}
+                          className="bg-green-500/80 text-white px-2 py-1 rounded-md text-sm flex items-center"
                         >
-                          {cat}
-                        </option>
+                          {tag}
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveTag(tag)}
+                            className="ml-2 text-red-300 hover:text-red-400"
+                          >
+                            ×
+                          </button>
+                        </span>
                       ))}
-                    </select>
+                    </div>
                   </div>
                 </div>
-
                 {error && <p className="text-red-400 text-sm">{error}</p>}
                 <div className="flex gap-4">
                   <Button
@@ -397,17 +572,69 @@ export default function Dashboard() {
           transition={{ duration: 0.5, delay: 0.7 }}
         >
           <Card className="bg-white/10 backdrop-blur-xl border border-green-500/20 shadow-xl rounded-xl">
-            <CardHeader>
+            <CardHeader className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <CardTitle className="text-xl font-semibold text-green-100">
                 Recent Expenses
               </CardTitle>
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full sm:w-auto">
+                <Input
+                  type="text"
+                  placeholder="Search expenses..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="bg-white/5 border-green-500/30 text-green-100 placeholder:text-green-100/50 focus:ring-2 focus:ring-green-500 focus:border-green-500 rounded-md p-2 w-full sm:w-64"
+                />
+                <select
+                  value={filterTag}
+                  onChange={(e) => setFilterTag(e.target.value)}
+                  className="bg-white/5 border-green-500/30 text-green-100 focus:ring-2 focus:ring-green-500 focus:border-green-500 rounded-md p-2 w-full sm:w-40"
+                >
+                  <option value="">Filter by Tag</option>
+                  {allTags.map((tag) => (
+                    <option key={tag} value={tag}>
+                      {tag}
+                    </option>
+                  ))}
+                </select>
+                <div className="flex gap-2 flex-col md:flex-row">
+                  <Button
+                    onClick={() => handleSort("date")}
+                    className={`bg-green-500/80 hover:bg-green-600 text-white py-1 px-2 rounded-md text-sm ${
+                      sortBy === "date" ? "font-bold" : ""
+                    }`}
+                  >
+                    Sort by Date{" "}
+                    {sortBy === "date" && (sortOrder === "asc" ? "↑" : "↓")}
+                  </Button>
+                  <Button
+                    onClick={() => handleSort("amount")}
+                    className={`bg-green-500/80 hover:bg-green-600 text-white py-1 px-2 rounded-md text-sm ${
+                      sortBy === "amount" ? "font-bold" : ""
+                    }`}
+                  >
+                    Sort by Amount{" "}
+                    {sortBy === "amount" && (sortOrder === "asc" ? "↑" : "↓")}
+                  </Button>
+                  <Button
+                    onClick={() => handleSort("category")}
+                    className={`bg-green-500/80 hover:bg-green-600 text-white py-1 px-2 rounded-md text-sm ${
+                      sortBy === "category" ? "font-bold" : ""
+                    }`}
+                  >
+                    Sort by Category{" "}
+                    {sortBy === "category" && (sortOrder === "asc" ? "↑" : "↓")}
+                  </Button>
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
               {isLoadingExpenses ? (
                 <Spinner />
-              ) : expenses.length === 0 ? (
+              ) : filteredExpenses.length === 0 ? (
                 <p className="text-green-200/70 text-center py-4">
-                  No expenses yet. Add one above!
+                  {searchTerm || filterTag
+                    ? "No matching expenses found."
+                    : "No expenses yet. Add one above!"}
                 </p>
               ) : (
                 <Table>
@@ -420,6 +647,7 @@ export default function Dashboard() {
                       <TableHead className="text-green-100/80">
                         Category
                       </TableHead>
+                      <TableHead className="text-green-100/80">Tags</TableHead>
                       <TableHead className="text-green-100/80 text-right">
                         Amount
                       </TableHead>
@@ -429,23 +657,48 @@ export default function Dashboard() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {expenses.map((expense, index) => (
+                    {filteredExpenses.map((expense, index) => (
                       <motion.tr
                         key={index}
                         initial={{ opacity: 0, x: -20 }}
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: 20 }}
                         transition={{ duration: 0.3, delay: index * 0.1 }}
-                        className="border-b border-green-500/10 hover:bg-white/5 transition-colors"
+                        className={`border-b border-green-500/10 transition-colors ${
+                          editingExpenseId === expense.id
+                            ? "bg-green-500/20"
+                            : "hover:bg-white/5"
+                        }`}
                       >
                         <TableCell className="text-green-100">
-                          {new Date(expense.createdAt).toDateString()}
+                          {new Date(
+                            expense.date || expense.createdAt
+                          ).toDateString()}
                         </TableCell>
                         <TableCell className="text-green-100">
-                          {expense.description}
+                          <span
+                            className="truncate block w-[200px]"
+                            title={expense.description}
+                          >
+                            {expense.description.length > 20
+                              ? `${expense.description.substring(0, 20)}...`
+                              : expense.description}
+                          </span>
                         </TableCell>
                         <TableCell className="text-green-100">
                           {expense.category}
+                        </TableCell>
+                        <TableCell className="text-green-100">
+                          <div className="flex flex-wrap gap-1">
+                            {(expense.tags || []).map((tag) => (
+                              <span
+                                key={tag}
+                                className="bg-green-500/80 text-white px-2 py-1 rounded-md text-xs"
+                              >
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
                         </TableCell>
                         <TableCell className="text-green-100 text-right">
                           R{expense.amount?.toFixed(2)}

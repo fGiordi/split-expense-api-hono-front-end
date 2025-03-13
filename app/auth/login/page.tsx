@@ -1,3 +1,4 @@
+// pages/auth/login.tsx
 "use client";
 
 import { useState } from "react";
@@ -10,7 +11,6 @@ import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
 import { motion } from "framer-motion";
 
-// Simple spinner component (consistent with dashboard)
 const Spinner = () => (
   <div className="flex justify-center items-center">
     <div className="w-6 h-6 border-4 border-green-500 border-t-transparent rounded-full animate-spin"></div>
@@ -21,13 +21,13 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const [isLoading, setIsLoading] = useState(false); // Loading state for login
+  const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError("");
-    setIsLoading(true); // Start loading
+    setIsLoading(true);
 
     try {
       const response = await axios.post(
@@ -35,17 +35,20 @@ export default function LoginPage() {
         { email, password },
         { headers: { "Content-Type": "application/json" } }
       );
+
       if (response.data.token) {
-        document.cookie = `token=${response.data.token}; path=/; max-age=604800`; // Expires in 7 days
+        document.cookie = `token=${response.data.token}; path=/; max-age=604800`;
         toast.success("Logged in successfully");
         router.push("/dashboard");
+      } else {
+        throw new Error("Token missing in response");
       }
     } catch (err) {
       console.error("Login error:", err);
       toast.error("Invalid email or password");
       setError("Invalid email or password");
     } finally {
-      setIsLoading(false); // Stop loading
+      setIsLoading(false);
     }
   };
 
