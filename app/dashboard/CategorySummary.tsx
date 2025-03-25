@@ -15,13 +15,11 @@ import {
 } from "recharts";
 import { Spinner } from "../components/ui/Spinner";
 
-// Define the type for the category summary data
 type CategorySummary = {
   name: string;
   value: number;
 };
 
-// Utility to get the authentication token from cookies
 const getCookie = (name: string) => {
   const value = `; ${document.cookie}`;
   const parts = value.split(`; ${name}=`);
@@ -29,10 +27,8 @@ const getCookie = (name: string) => {
   return null;
 };
 
-// Define colors for the pie chart segments
 const COLORS = ["#3df", "#2DD4BF", "#000", "#FBBF24", "#F87171"];
 
-// Custom tooltip component
 const CustomTooltip = ({ active, payload }: any) => {
   if (active && payload && payload.length) {
     return (
@@ -44,7 +40,13 @@ const CustomTooltip = ({ active, payload }: any) => {
   return null;
 };
 
-export default function CategorySummary() {
+type CategorySummaryProps = {
+  refreshTrigger: number; // Add refreshTrigger prop
+};
+
+export default function CategorySummary({
+  refreshTrigger,
+}: CategorySummaryProps) {
   const [categorySummary, setCategorySummary] = useState<CategorySummary[]>([]);
   const [isLoadingSummary, setIsLoadingSummary] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -69,7 +71,6 @@ export default function CategorySummary() {
           },
         }
       );
-      // Recharts expects data in the format [{ name: string, value: number }, ...]
       const formattedData = response.data.map(
         (item: { category: string; total: number }) => ({
           name: item.category,
@@ -88,7 +89,7 @@ export default function CategorySummary() {
 
   useEffect(() => {
     fetchCategorySummary();
-  }, []);
+  }, [refreshTrigger]); // Re-fetch when refreshTrigger changes
 
   return (
     <motion.div

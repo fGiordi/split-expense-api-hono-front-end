@@ -1,5 +1,5 @@
 // components/dashboard/ExpenseForm.tsx
-import { useState, useEffect } from "react"; // Add useEffect
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -25,7 +25,8 @@ type ExpenseFormProps = {
   setExpenses: React.Dispatch<React.SetStateAction<Expense[]>>;
   editingExpenseId: string | null;
   setEditingExpenseId: React.Dispatch<React.SetStateAction<string | null>>;
-  editingExpense: Expense | null; // New prop for the expense being edited
+  editingExpense: Expense | null;
+  triggerRefresh: () => void; // Add triggerRefresh prop
 };
 
 const getCookie = (name: string) => {
@@ -46,7 +47,8 @@ export default function ExpenseForm({
   setExpenses,
   editingExpenseId,
   setEditingExpenseId,
-  editingExpense, // Add the new prop
+  editingExpense,
+  triggerRefresh, // Add the new prop
 }: ExpenseFormProps) {
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
@@ -58,7 +60,6 @@ export default function ExpenseForm({
   const [error, setError] = useState("");
   const [isAddingExpense, setIsAddingExpense] = useState(false);
 
-  // Pre-fill the form when editing an expense
   useEffect(() => {
     if (editingExpense) {
       setAmount(editingExpense.amount.toString());
@@ -69,7 +70,6 @@ export default function ExpenseForm({
       setSubCategory(subCat || "");
       setTags(editingExpense.tags || []);
     } else {
-      // Reset form when not editing
       setAmount("");
       setDescription("");
       setMainCategory("");
@@ -102,7 +102,7 @@ export default function ExpenseForm({
         : new Date().toISOString().split("T")[0];
 
       if (editingExpenseId) {
-        const response = await axios.put(
+        await axios.put(
           `${process.env.NEXT_PUBLIC_BACKEND}expenses/${editingExpenseId}`,
           {
             amount: parseFloat(amount),
@@ -118,15 +118,10 @@ export default function ExpenseForm({
             },
           }
         );
-        setExpenses(
-          expenses.map((exp) =>
-            exp.id === editingExpenseId ? response.data.expense : exp
-          )
-        );
         toast.success("Expense updated successfully");
         setEditingExpenseId(null);
       } else {
-        const response = await axios.post(
+        await axios.post(
           `${process.env.NEXT_PUBLIC_BACKEND}expenses`,
           {
             amount: parseFloat(amount),
@@ -142,7 +137,6 @@ export default function ExpenseForm({
             },
           }
         );
-        setExpenses([...expenses, response.data.expense]);
         toast.success("Expense added successfully");
       }
       setAmount("");
@@ -152,6 +146,7 @@ export default function ExpenseForm({
       setDate(undefined);
       setTags([]);
       setTagInput("");
+      triggerRefresh(); // Trigger re-fetch of expenses
     } catch (err: unknown) {
       console.error("Expense error:", err);
       if (axios.isAxiosError(err) && err.response) {

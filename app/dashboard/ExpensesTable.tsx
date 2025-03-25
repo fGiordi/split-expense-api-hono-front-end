@@ -30,10 +30,11 @@ type ExpensesTableProps = {
   filteredExpenses: Expense[];
   setFilteredExpenses: React.Dispatch<React.SetStateAction<Expense[]>>;
   setExpenses: React.Dispatch<React.SetStateAction<Expense[]>>;
-  setEditingExpense: React.Dispatch<React.SetStateAction<Expense | null>>; // Updated prop
-  editingExpenseId: string | null;
+  setEditingExpense: React.Dispatch<React.SetStateAction<Expense | null>>;
   setEditingExpenseId: React.Dispatch<React.SetStateAction<string | null>>;
+  editingExpenseId: string | null;
   isLoadingExpenses: boolean;
+  triggerRefresh: () => void; // Add triggerRefresh prop
 };
 
 const getCookie = (name: string) => {
@@ -58,10 +59,11 @@ export default function ExpensesTable({
   filteredExpenses,
   setFilteredExpenses,
   setExpenses,
-  setEditingExpense, // Updated prop
+  setEditingExpense,
   setEditingExpenseId,
   editingExpenseId,
   isLoadingExpenses,
+  triggerRefresh, // Add the new prop
 }: ExpensesTableProps) {
   const [deletingExpenseId, setDeletingExpenseId] = useState<string | null>(
     null
@@ -89,7 +91,7 @@ export default function ExpensesTable({
 
       if (key === "date" || key === "createdAt") {
         valueA = new Date(a[key] || a.createdAt).getTime();
-        valueB = new Date(b[key] || b.createdAt).getTime();
+        valueB = newAte(b[key] || b.createdAt).getTime();
       } else if (key === "amount") {
         valueA = a.amount;
         valueB = b.amount;
@@ -120,11 +122,8 @@ export default function ExpensesTable({
           Authorization: `Bearer ${token}`,
         },
       });
-      setExpenses(expenses.filter((expense) => expense.id !== id));
-      setFilteredExpenses(
-        filteredExpenses.filter((expense) => expense.id !== id)
-      );
       toast.success("Expense deleted successfully");
+      triggerRefresh(); // Trigger re-fetch of expenses
     } catch (err) {
       console.error("Delete expense error:", err);
       toast.error("Failed to delete expense");
@@ -135,7 +134,7 @@ export default function ExpensesTable({
 
   const handleEditExpense = (expense: Expense) => {
     setEditingExpenseId(expense.id);
-    setEditingExpense(expense); // Pass the expense to the parent
+    setEditingExpense(expense);
   };
 
   return (
