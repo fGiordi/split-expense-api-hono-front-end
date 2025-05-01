@@ -10,16 +10,8 @@ import ExpensesTable from "./ExpensesTable";
 import Header from "./Header";
 import TotalExpensesCard from "./TotalExpensesCard";
 import CategorySummary from "./CategorySummary";
-
-type Expense = {
-  createdAt: string | number | Date;
-  id: string;
-  amount: number;
-  description: string;
-  category: string;
-  date: string;
-  tags: string[];
-};
+import Groups from "./Groups";
+import { Expense } from "@/types";
 
 const getCookie = (name: string) => {
   const value = `; ${document.cookie}`;
@@ -86,7 +78,8 @@ export default function Dashboard() {
           expenses={expenses}
           filteredExpenses={filteredExpenses}
         />
-        <CategorySummary refreshTrigger={refreshTrigger} />
+        {/* <CategorySummary refreshTrigger={refreshTrigger} /> */}
+        <Groups />
         <ExpenseForm
           expenses={expenses}
           setExpenses={setExpenses}

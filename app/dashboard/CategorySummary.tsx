@@ -116,7 +116,11 @@ export default function CategorySummary({
                 Retry
               </Button>
             </div>
-          ) : categorySummary.length > 0 ? (
+          ) : categorySummary.length === 0 ? (
+            <p className="text-green-200/70 text-center">
+              No expenses to summarize yet.
+            </p>
+          ) : (
             <div className="max-w-md mx-auto">
               <ResponsiveContainer width="100%" height={300}>
                 <PieChart>
@@ -155,8 +159,6 @@ export default function CategorySummary({
                 </PieChart>
               </ResponsiveContainer>
             </div>
-          ) : (
-            <p className="text-green-200/70">No expenses to summarize yet.</p>
           )}
         </CardContent>
       </Card>

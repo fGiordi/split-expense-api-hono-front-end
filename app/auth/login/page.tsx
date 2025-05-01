@@ -36,9 +36,15 @@ export default function LoginPage() {
         { headers: { "Content-Type": "application/json" } }
       );
 
+      console.log("response", response);
+
       if (response.data.token) {
         document.cookie = `token=${response.data.token}; path=/; max-age=604800`;
+        document.cookie = `userId=${response.data.userId}; path=/; max-age=604800`;
+
         toast.success("Logged in successfully");
+        localStorage.setItem("userId", response.data.userId);
+
         router.push("/dashboard");
       } else {
         throw new Error("Token missing in response");

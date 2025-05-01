@@ -1,5 +1,5 @@
 // components/dashboard/ExpensesTable.tsx
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,16 +14,7 @@ import {
 import { motion } from "framer-motion";
 import { toast } from "react-toastify";
 import axios from "axios";
-
-type Expense = {
-  createdAt: string | number | Date;
-  id: string;
-  amount: number;
-  description: string;
-  category: string;
-  date: string;
-  tags: string[];
-};
+import { Expense, Group } from "@/types";
 
 type ExpensesTableProps = {
   expenses: Expense[];
@@ -34,7 +25,7 @@ type ExpensesTableProps = {
   setEditingExpenseId: React.Dispatch<React.SetStateAction<string | null>>;
   editingExpenseId: string | null;
   isLoadingExpenses: boolean;
-  triggerRefresh: () => void; // Add triggerRefresh prop
+  triggerRefresh: () => void;
 };
 
 const getCookie = (name: string) => {
@@ -51,7 +42,7 @@ const Spinner = () => (
 );
 
 const SmallSpinner = () => (
-  <div className="w-4 h-4 border-2 border-red-500 border-t-transparent rounded-full animate-spin"></div>
+  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
 );
 
 export default function ExpensesTable({
@@ -63,7 +54,7 @@ export default function ExpensesTable({
   setEditingExpenseId,
   editingExpenseId,
   isLoadingExpenses,
-  triggerRefresh, // Add the new prop
+  triggerRefresh,
 }: ExpensesTableProps) {
   const [deletingExpenseId, setDeletingExpenseId] = useState<string | null>(
     null
@@ -72,6 +63,32 @@ export default function ExpensesTable({
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [searchTerm, setSearchTerm] = useState("");
   const [filterTag, setFilterTag] = useState("");
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [selectedGroup, setSelectedGroup] = useState<number | "">("");
+
+  useEffect(() => {
+    const fetchGroups = async () => {
+      const token = getCookie("token");
+      if (!token) return;
+
+      try {
+        const response = await axios.get(
+          `${process.env.NEXT_PUBLIC_BACKEND}groups`,
+          {
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+        setGroups(response.data);
+      } catch (err) {
+        console.error("Error fetching groups:", err);
+      }
+    };
+
+    fetchGroups();
+  }, []);
 
   const allTags = Array.from(
     new Set(expenses.flatMap((expense) => expense.tags || []))
@@ -86,15 +103,19 @@ export default function ExpensesTable({
     }
 
     const sortedExpenses = [...filteredExpenses].sort((a, b) => {
-      let valueA = a[key];
-      let valueB = b[key];
+      let valueA: any = a[key];
+      let valueB: any = b[key];
 
       if (key === "date" || key === "createdAt") {
         valueA = new Date(a[key] || a.createdAt).getTime();
-        valueB = newAte(b[key] || b.createdAt).getTime();
+        valueB = new Date(b[key] || b.createdAt).getTime();
       } else if (key === "amount") {
         valueA = a.amount;
         valueB = b.amount;
+      }
+
+      if (valueA === undefined || valueB === undefined) {
+        return 0;
       }
 
       if (sortOrder === "asc") {
@@ -123,7 +144,7 @@ export default function ExpensesTable({
         },
       });
       toast.success("Expense deleted successfully");
-      triggerRefresh(); // Trigger re-fetch of expenses
+      triggerRefresh();
     } catch (err) {
       console.error("Delete expense error:", err);
       toast.error("Failed to delete expense");
@@ -135,6 +156,12 @@ export default function ExpensesTable({
   const handleEditExpense = (expense: Expense) => {
     setEditingExpenseId(expense.id);
     setEditingExpense(expense);
+  };
+
+  const getGroupName = (groupId?: number) => {
+    if (!groupId) return "";
+    const group = groups.find((g) => g.id === groupId);
+    return group ? group.name : "";
   };
 
   return (
@@ -169,6 +196,26 @@ export default function ExpensesTable({
               className="bg-white/5 border-green-500/30 text-green-100 placeholder:text-green-100/50 focus:ring-2 focus:ring-green-500 focus:border-green-500 rounded-md p-2 w-full sm:w-64"
             />
             <select
+              value={selectedGroup}
+              onChange={(e) => {
+                const groupId = e.target.value ? Number(e.target.value) : "";
+                setSelectedGroup(groupId);
+                const filtered = expenses.filter((expense) =>
+                  // @ts-ignore
+                  groupId ? expense.groupId === groupId : true
+                );
+                setFilteredExpenses(filtered);
+              }}
+              className="bg-white/5 border-green-500/30 text-green-100 focus:ring-2 focus:ring-green-500 focus:border-green-500 rounded-md p-2 w-full sm:w-40"
+            >
+              <option value="">All Groups</option>
+              {groups.map((group, index) => (
+                <option key={index} value={group.id}>
+                  {group.name}
+                </option>
+              ))}
+            </select>
+            <select
               value={filterTag}
               onChange={(e) => {
                 setFilterTag(e.target.value);
@@ -188,35 +235,6 @@ export default function ExpensesTable({
                 </option>
               ))}
             </select>
-            <div className="flex gap-2 flex-col md:flex-row">
-              <Button
-                onClick={() => handleSort("date")}
-                className={`bg-green-500/80 hover:bg-green-600 text-white py-1 px-2 rounded-md text-sm ${
-                  sortBy === "date" ? "font-bold" : ""
-                }`}
-              >
-                Sort by Date{" "}
-                {sortBy === "date" && (sortOrder === "asc" ? "↑" : "↓")}
-              </Button>
-              <Button
-                onClick={() => handleSort("amount")}
-                className={`bg-green-500/80 hover:bg-green-600 text-white py-1 px-2 rounded-md text-sm ${
-                  sortBy === "amount" ? "font-bold" : ""
-                }`}
-              >
-                Sort by Amount{" "}
-                {sortBy === "amount" && (sortOrder === "asc" ? "↑" : "↓")}
-              </Button>
-              <Button
-                onClick={() => handleSort("category")}
-                className={`bg-green-500/80 hover:bg-green-600 text-white py-1 px-2 rounded-md text-sm ${
-                  sortBy === "category" ? "font-bold" : ""
-                }`}
-              >
-                Sort by Category{" "}
-                {sortBy === "category" && (sortOrder === "asc" ? "↑" : "↓")}
-              </Button>
-            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -224,7 +242,7 @@ export default function ExpensesTable({
             <Spinner />
           ) : filteredExpenses.length === 0 ? (
             <p className="text-green-200/70 text-center py-4">
-              {searchTerm || filterTag
+              {searchTerm || filterTag || selectedGroup
                 ? "No matching expenses found."
                 : "No expenses yet. Add one above!"}
             </p>
@@ -237,6 +255,7 @@ export default function ExpensesTable({
                     Description
                   </TableHead>
                   <TableHead className="text-green-100/80">Category</TableHead>
+                  <TableHead className="text-green-100/80">Group</TableHead>
                   <TableHead className="text-green-100/80">Tags</TableHead>
                   <TableHead className="text-green-100/80 text-right">
                     Amount
@@ -249,41 +268,32 @@ export default function ExpensesTable({
               <TableBody>
                 {filteredExpenses.map((expense, index) => (
                   <motion.tr
-                    key={index}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: 20 }}
-                    transition={{ duration: 0.3, delay: index * 0.1 }}
-                    className={`border-b border-green-500/10 transition-colors ${
-                      editingExpenseId === expense.id
-                        ? "bg-green-500/20"
-                        : "hover:bg-white/5"
-                    }`}
+                    key={expense.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, delay: index * 0.05 }}
+                    className="border-b border-green-500/10 hover:bg-green-500/5"
                   >
                     <TableCell className="text-green-100">
                       {new Date(
                         expense.date || expense.createdAt
-                      ).toDateString()}
+                      ).toLocaleDateString()}
                     </TableCell>
                     <TableCell className="text-green-100">
-                      <span
-                        className="truncate block w-[200px]"
-                        title={expense.description}
-                      >
-                        {expense.description.length > 20
-                          ? `${expense.description.substring(0, 20)}...`
-                          : expense.description}
-                      </span>
+                      {expense.description}
                     </TableCell>
                     <TableCell className="text-green-100">
                       {expense.category}
                     </TableCell>
                     <TableCell className="text-green-100">
+                      {/* {getGroupName(expense.groupId)} */}
+                    </TableCell>
+                    <TableCell>
                       <div className="flex flex-wrap gap-1">
-                        {(expense.tags || []).map((tag) => (
+                        {expense.tags?.map((tag) => (
                           <span
                             key={tag}
-                            className="bg-green-500/80 text-white px-2 py-1 rounded-md text-xs"
+                            className="bg-green-500/20 text-green-100 px-2 py-0.5 rounded-full text-xs"
                           >
                             {tag}
                           </span>

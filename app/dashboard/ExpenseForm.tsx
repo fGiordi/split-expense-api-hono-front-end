@@ -7,18 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { motion } from "framer-motion";
 import { toast } from "react-toastify";
 import axios from "axios";
-import { categoryOptions } from "@/types";
+import { categoryOptions, Expense, Group } from "@/types";
 import { DatePicker } from "@/components/ui/datePicker";
-
-type Expense = {
-  createdAt: string | number | Date;
-  id: string;
-  amount: number;
-  description: string;
-  category: string;
-  date: string;
-  tags: string[];
-};
 
 type ExpenseFormProps = {
   expenses: Expense[];
@@ -26,7 +16,7 @@ type ExpenseFormProps = {
   editingExpenseId: string | null;
   setEditingExpenseId: React.Dispatch<React.SetStateAction<string | null>>;
   editingExpense: Expense | null;
-  triggerRefresh: () => void; // Add triggerRefresh prop
+  triggerRefresh: () => void;
 };
 
 const getCookie = (name: string) => {
@@ -48,7 +38,7 @@ export default function ExpenseForm({
   editingExpenseId,
   setEditingExpenseId,
   editingExpense,
-  triggerRefresh, // Add the new prop
+  triggerRefresh,
 }: ExpenseFormProps) {
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
@@ -59,6 +49,34 @@ export default function ExpenseForm({
   const [tagInput, setTagInput] = useState("");
   const [error, setError] = useState("");
   const [isAddingExpense, setIsAddingExpense] = useState(false);
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [selectedGroupId, setSelectedGroupId] = useState<number | undefined>(
+    undefined
+  );
+
+  useEffect(() => {
+    const fetchGroups = async () => {
+      const token = getCookie("token");
+      if (!token) return;
+
+      try {
+        const response = await axios.get(
+          `${process.env.NEXT_PUBLIC_BACKEND}groups`,
+          {
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+        setGroups(response.data);
+      } catch (err) {
+        console.error("Error fetching groups:", err);
+      }
+    };
+
+    fetchGroups();
+  }, []);
 
   useEffect(() => {
     if (editingExpense) {
@@ -69,6 +87,7 @@ export default function ExpenseForm({
       setMainCategory(mainCat);
       setSubCategory(subCat || "");
       setTags(editingExpense.tags || []);
+      setSelectedGroupId(Number(editingExpense.groupId));
     } else {
       setAmount("");
       setDescription("");
@@ -77,6 +96,7 @@ export default function ExpenseForm({
       setDate(undefined);
       setTags([]);
       setTagInput("");
+      setSelectedGroupId(undefined);
     }
   }, [editingExpense]);
 
@@ -101,16 +121,19 @@ export default function ExpenseForm({
         ? date.toISOString().split("T")[0]
         : new Date().toISOString().split("T")[0];
 
+      const expenseData = {
+        amount: parseFloat(amount),
+        description,
+        category: combinedCategory,
+        date: formattedDate,
+        tags: tags.map((tag) => tag.toLowerCase()),
+        groupId: selectedGroupId,
+      };
+
       if (editingExpenseId) {
         await axios.put(
           `${process.env.NEXT_PUBLIC_BACKEND}expenses/${editingExpenseId}`,
-          {
-            amount: parseFloat(amount),
-            description,
-            category: combinedCategory,
-            date: formattedDate,
-            tags: tags.map((tag) => tag.toLowerCase()),
-          },
+          expenseData,
           {
             headers: {
               "Content-Type": "application/json",
@@ -123,13 +146,7 @@ export default function ExpenseForm({
       } else {
         await axios.post(
           `${process.env.NEXT_PUBLIC_BACKEND}expenses`,
-          {
-            amount: parseFloat(amount),
-            description,
-            category: combinedCategory,
-            date: formattedDate,
-            tags: tags.map((tag) => tag.toLowerCase()),
-          },
+          expenseData,
           {
             headers: {
               "Content-Type": "application/json",
@@ -146,8 +163,9 @@ export default function ExpenseForm({
       setDate(undefined);
       setTags([]);
       setTagInput("");
-      triggerRefresh(); // Trigger re-fetch of expenses
-    } catch (err: unknown) {
+      setSelectedGroupId(undefined);
+      triggerRefresh();
+    } catch (err) {
       console.error("Expense error:", err);
       if (axios.isAxiosError(err) && err.response) {
         setError(err.response.data?.message || "Failed to process expense");
@@ -252,8 +270,33 @@ export default function ExpenseForm({
                 />
               </div>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 space-y-2 w-full space-x-10">
-              <div className="flex flex-col space-y-2">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label
+                  htmlFor="group"
+                  className="text-green-100/80 text-sm font-medium"
+                >
+                  Group (Optional)
+                </Label>
+                <select
+                  id="group"
+                  value={selectedGroupId || ""}
+                  onChange={(e) =>
+                    setSelectedGroupId(
+                      e.target.value ? Number(e.target.value) : undefined
+                    )
+                  }
+                  className="w-full bg-white/5 border-green-500/30 text-green-100 focus:ring-2 focus:ring-green-500 focus:border-green-500 rounded-md p-2"
+                >
+                  <option value="">No Group</option>
+                  {groups.map((group) => (
+                    <option key={group.id} value={group.id}>
+                      {group.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-2">
                 <Label
                   htmlFor="date"
                   className="text-green-100/80 text-sm font-medium block"
@@ -266,7 +309,7 @@ export default function ExpenseForm({
                   className="bg-teal-500 border-green-500/30 text-green-100 placeholder:text-green-100/50 focus:ring-2 focus:ring-green-500 focus:border-green-500 rounded-md p-2"
                 />
               </div>
-              <div className="flex flex-col space-y-2">
+              <div className="space-y-2">
                 <Label
                   htmlFor="tags"
                   className="text-green-100/80 text-sm font-medium"
