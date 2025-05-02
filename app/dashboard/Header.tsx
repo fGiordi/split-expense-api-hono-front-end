@@ -21,6 +21,14 @@ export default function Header() {
       <h1 className="text-4xl font-bold text-green-100 tracking-tight">
         Dashboard
       </h1>
+      <div className="mt-8">
+        <a
+          href="/groups/accept-invitation"
+          className="text-green-300 hover:underline font-semibold"
+        >
+          Have an invitation token? Join a group here
+        </a>
+      </div>
       <Button
         onClick={handleLogout}
         className="bg-red-500/80 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded-lg shadow-md backdrop-blur-sm"
