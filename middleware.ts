@@ -6,7 +6,12 @@ export function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
   // Define public routes that don't require a token
-  const publicRoutes = ["/", "/auth/login", "/auth/register"];
+  const publicRoutes = [
+    "/",
+    "/auth/login",
+    "/auth/register",
+    "/groups/accept-invitation",
+  ];
   const isPublicRoute = publicRoutes.some((route) => pathname === route);
 
   // Redirect to /auth/login if no token and trying to access a protected route
