@@ -5,6 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { motion } from "framer-motion";
 import { toast } from "react-toastify";
 import axios from "axios";
@@ -31,6 +37,7 @@ export default function Groups() {
   const [isLoading, setIsLoading] = useState(false);
   const [isCreatingGroup, setIsCreatingGroup] = useState(false);
   const [isSendingInvite, setIsSendingInvite] = useState(false);
+  const [invitationToken, setInvitationToken] = useState<string | null>(null);
 
   const userId = getCookie("userId");
   useEffect(() => {
@@ -118,9 +125,8 @@ export default function Groups() {
         }
       );
       toast.success("Invitation sent successfully");
+      setInvitationToken(response.data.invitationToken);
       setInviteEmail("");
-      // In a real application, you would send an email with the invitation token
-      console.log("Invitation token:", response.data.invitationToken);
     } catch (err) {
       console.error("Error sending invitation:", err);
       toast.error("Failed to send invitation");
@@ -185,7 +191,6 @@ export default function Groups() {
                 <select
                   value={selectedGroupId || ""}
                   onChange={(e) => {
-                    console.log("selected", e.target.value);
                     setSelectedGroupId(
                       e.target.value ? Number(e.target.value) : null
                     );
@@ -254,6 +259,33 @@ export default function Groups() {
           </div>
         </CardContent>
       </Card>
+
+      <Dialog
+        open={!!invitationToken}
+        onOpenChange={() => setInvitationToken(null)}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-green-200">
+              Invitation Sent
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-green-200">
+              An invitation has been sent to {inviteEmail}
+            </p>
+            <div className="bg-gray-800 p-4 rounded-lg">
+              <p className="text-sm text-gray-400 mb-2">Invitation Token:</p>
+              <p className="text-white font-mono break-all">
+                {invitationToken}
+              </p>
+            </div>
+            <p className="text-sm text-gray-400">
+              Share this token with the invited user to join the group.
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
     </motion.div>
   );
 }
