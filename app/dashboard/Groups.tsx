@@ -1,3 +1,5 @@
+"use client";
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,9 +12,7 @@ import { Group } from "@/types";
 
 const getCookie = (name: string) => {
   const value = `; ${document.cookie}`;
-
   const parts = value.split(`; ${name}=`);
-  console.log("parts", parts);
   if (parts.length === 2) return parts.pop()?.split(";").shift();
   return null;
 };
@@ -33,7 +33,6 @@ export default function Groups() {
   const [isSendingInvite, setIsSendingInvite] = useState(false);
 
   const userId = getCookie("userId");
-  console.log("groups outside", groups);
   useEffect(() => {
     fetchGroups();
   }, []);
@@ -53,7 +52,6 @@ export default function Groups() {
           },
         }
       );
-      console.log("groups response", response);
       setGroups(response.data);
     } catch (err) {
       console.error("Error fetching groups:", err);

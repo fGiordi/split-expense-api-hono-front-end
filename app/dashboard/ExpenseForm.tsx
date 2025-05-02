@@ -245,8 +245,8 @@ export default function ExpenseForm({
                   <option value="" disabled>
                     Select a category
                   </option>
-                  {categoryOptions.map((cat) => (
-                    <option key={cat} value={cat}>
+                  {categoryOptions.map((cat, index) => (
+                    <option key={index} value={cat}>
                       {cat}
                     </option>
                   ))}
@@ -289,9 +289,9 @@ export default function ExpenseForm({
                   className="w-full bg-white/5 border-green-500/30 text-green-100 focus:ring-2 focus:ring-green-500 focus:border-green-500 rounded-md p-2"
                 >
                   <option value="">No Group</option>
-                  {groups.map((group) => (
-                    <option key={group.id} value={group.id}>
-                      {group.name}
+                  {groups.map((item, index) => (
+                    <option key={item.group.id} value={item.group.id}>
+                      {item.group.name}
                     </option>
                   ))}
                 </select>
