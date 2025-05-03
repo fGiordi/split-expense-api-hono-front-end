@@ -9,11 +9,14 @@ import { motion } from "framer-motion";
 import { toast } from "react-toastify";
 import axios from "axios";
 import { useRouter } from "next/navigation";
+import { getCookie } from "@/app/dashboard/page";
 
 export default function AcceptInvitation() {
-  const [token, setToken] = useState("");
+  const [inviteToken, setToken] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const router = useRouter();
+
+  const token = getCookie("token");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,15 +25,17 @@ export default function AcceptInvitation() {
     try {
       const response = await axios.post(
         `${process.env.NEXT_PUBLIC_BACKEND}groups/accept-invitation`,
-        { token },
+        { token: inviteToken },
         {
           headers: {
             "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
           },
         }
       );
+      console.log("response", response);
 
-      if (response.data.success) {
+      if (response.status === 201) {
         toast.success("Successfully joined the group!");
         router.push("/dashboard");
       }
@@ -69,7 +74,7 @@ export default function AcceptInvitation() {
               <Input
                 id="token"
                 type="text"
-                value={token}
+                value={inviteToken}
                 onChange={(e) => setToken(e.target.value)}
                 className="bg-white/5 border-green-500/30 text-green-100 placeholder:text-green-100/50 focus:ring-2 focus:ring-green-500 focus:border-green-500 rounded-md p-2"
                 placeholder="Enter your invitation token"

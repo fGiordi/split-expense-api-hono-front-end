@@ -93,7 +93,7 @@ export default function ExpenseForm({
       setDescription("");
       setMainCategory("");
       setSubCategory("");
-      setDate(undefined);
+      setDate(new Date());
       setTags([]);
       setTagInput("");
       setSelectedGroupId(undefined);
