@@ -160,8 +160,8 @@ export default function ExpensesTable({
 
   const getGroupName = (groupId?: number) => {
     if (!groupId) return "";
-    const group = groups.find((g) => g.id === groupId);
-    return group ? group.name : "";
+    const group = groups.find((g) => g.group.id === groupId);
+    return group ? group.group.name : "";
   };
 
   return (
@@ -210,8 +210,8 @@ export default function ExpensesTable({
             >
               <option value="">All Groups</option>
               {groups.map((group, index) => (
-                <option key={index} value={group.id}>
-                  {group.name}
+                <option key={index} value={group.group.id}>
+                  {group.group.name}
                 </option>
               ))}
             </select>
