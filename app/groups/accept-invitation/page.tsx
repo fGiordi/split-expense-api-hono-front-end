@@ -33,7 +33,6 @@ export default function AcceptInvitation() {
           },
         }
       );
-      console.log("response", response);
 
       if (response.status === 201) {
         toast.success("Successfully joined the group!");
