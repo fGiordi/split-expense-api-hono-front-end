@@ -9,11 +9,11 @@ import ExpenseForm from "./ExpenseForm";
 import ExpensesTable from "./ExpensesTable";
 import Header from "./Header";
 import TotalExpensesCard from "./TotalExpensesCard";
-import CategorySummary from "./CategorySummary";
+// import CategorySummary from "./CategorySummary";
 import Groups from "./Groups";
 import { Expense } from "@/types";
 
-export const getCookie = (name: string) => {
+const getCookie = (name: string) => {
   const value = `; ${document.cookie}`;
   const parts = value.split(`; ${name}=`);
   if (parts.length === 2) return parts.pop()?.split(";").shift();

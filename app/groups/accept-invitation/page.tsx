@@ -9,7 +9,7 @@ import { motion } from "framer-motion";
 import { toast } from "react-toastify";
 import axios from "axios";
 import { useRouter } from "next/navigation";
-import { getCookie } from "@/app/dashboard/page";
+import { getCookie } from "@/utils/cookie";
 
 export default function AcceptInvitation() {
   const [inviteToken, setToken] = useState("");

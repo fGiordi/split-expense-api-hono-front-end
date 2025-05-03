@@ -29,7 +29,13 @@ const getCookie = (name: string) => {
 
 const COLORS = ["#3df", "#2DD4BF", "#000", "#FBBF24", "#F87171"];
 
-const CustomTooltip = ({ active, payload }: any) => {
+const CustomTooltip = ({
+  active,
+  payload,
+}: {
+  active?: boolean;
+  payload?: { name: string; value: number }[];
+}) => {
   if (active && payload && payload.length) {
     return (
       <div className="bg-[#1a3c34] border border-[#34D399] p-2 rounded text-white">

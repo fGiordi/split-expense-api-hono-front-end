@@ -49,18 +49,18 @@ export default function ExpensesTable({
   expenses,
   filteredExpenses,
   setFilteredExpenses,
-  setExpenses,
+  // setExpenses,
   setEditingExpense,
   setEditingExpenseId,
-  editingExpenseId,
+  // editingExpenseId,
   isLoadingExpenses,
   triggerRefresh,
 }: ExpensesTableProps) {
   const [deletingExpenseId, setDeletingExpenseId] = useState<string | null>(
     null
   );
-  const [sortBy, setSortBy] = useState<keyof Expense | "">("");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  // const [sortBy, setSortBy] = useState<keyof Expense | "">("");
+  // const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [searchTerm, setSearchTerm] = useState("");
   const [filterTag, setFilterTag] = useState("");
   const [groups, setGroups] = useState<Group[]>([]);
@@ -94,39 +94,39 @@ export default function ExpensesTable({
     new Set(expenses.flatMap((expense) => expense.tags || []))
   );
 
-  const handleSort = (key: keyof Expense) => {
-    if (sortBy === key) {
-      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
-    } else {
-      setSortBy(key);
-      setSortOrder("asc");
-    }
+  // const handleSort = (key: keyof Expense) => {
+  //   if (sortBy === key) {
+  //     setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+  //   } else {
+  //     setSortBy(key);
+  //     setSortOrder("asc");
+  //   }
 
-    const sortedExpenses = [...filteredExpenses].sort((a, b) => {
-      let valueA: any = a[key];
-      let valueB: any = b[key];
+  //   const sortedExpenses = [...filteredExpenses].sort((a, b) => {
+  //     let valueA: any = a[key];
+  //     let valueB: any = b[key];
 
-      if (key === "date" || key === "createdAt") {
-        valueA = new Date(a[key] || a.createdAt).getTime();
-        valueB = new Date(b[key] || b.createdAt).getTime();
-      } else if (key === "amount") {
-        valueA = a.amount;
-        valueB = b.amount;
-      }
+  //     if (key === "date" || key === "createdAt") {
+  //       valueA = new Date(a[key] || a.createdAt).getTime();
+  //       valueB = new Date(b[key] || b.createdAt).getTime();
+  //     } else if (key === "amount") {
+  //       valueA = a.amount;
+  //       valueB = b.amount;
+  //     }
 
-      if (valueA === undefined || valueB === undefined) {
-        return 0;
-      }
+  //     if (valueA === undefined || valueB === undefined) {
+  //       return 0;
+  //     }
 
-      if (sortOrder === "asc") {
-        return valueA > valueB ? 1 : -1;
-      } else {
-        return valueA < valueB ? 1 : -1;
-      }
-    });
+  //     if (sortOrder === "asc") {
+  //       return valueA > valueB ? 1 : -1;
+  //     } else {
+  //       return valueA < valueB ? 1 : -1;
+  //     }
+  //   });
 
-    setFilteredExpenses(sortedExpenses);
-  };
+  //   setFilteredExpenses(sortedExpenses);
+  // };
 
   const handleDeleteExpense = async (id: string) => {
     const token = getCookie("token");
@@ -158,11 +158,11 @@ export default function ExpensesTable({
     setEditingExpense(expense);
   };
 
-  const getGroupName = (groupId?: number) => {
-    if (!groupId) return "";
-    const group = groups.find((g) => g.group.id === groupId);
-    return group ? group.group.name : "";
-  };
+  // const getGroupName = (groupId?: number) => {
+  //   if (!groupId) return "";
+  //   const group = groups.find((g) => g.group.id === groupId);
+  //   return group ? group.group.name : "";
+  // };
 
   return (
     <motion.div
@@ -201,8 +201,7 @@ export default function ExpensesTable({
                 const groupId = e.target.value ? Number(e.target.value) : "";
                 setSelectedGroup(groupId);
                 const filtered = expenses.filter((expense) =>
-                  // @ts-ignore
-                  groupId ? expense.groupId === groupId : true
+                  groupId ? expense.groupId === String(groupId) : true
                 );
                 setFilteredExpenses(filtered);
               }}

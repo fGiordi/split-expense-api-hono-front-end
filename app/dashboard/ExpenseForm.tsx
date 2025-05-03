@@ -33,8 +33,8 @@ const Spinner = () => (
 );
 
 export default function ExpenseForm({
-  expenses,
-  setExpenses,
+  // expenses,
+  // setExpenses,
   editingExpenseId,
   setEditingExpenseId,
   editingExpense,
@@ -289,7 +289,7 @@ export default function ExpenseForm({
                   className="w-full bg-white/5 border-green-500/30 text-green-100 focus:ring-2 focus:ring-green-500 focus:border-green-500 rounded-md p-2"
                 >
                   <option value="">No Group</option>
-                  {groups.map((item, index) => (
+                  {groups.map((item) => (
                     <option key={item.group.id} value={item.group.id}>
                       {item.group.name}
                     </option>
